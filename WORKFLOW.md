@@ -117,18 +117,18 @@ The expected project history should include checkpoints resembling the following
 
 ## 7. Commit messages
 
-Use concise, human-friendly imperative messages that describe the observable change.
+Use short, human-friendly overview messages. A commit subject should be two to five words: enough to identify the area changed in `git log`, without trying to explain every implementation detail.
 
 Good examples:
 
 ```text
-Document RecoveryOS architecture and safety rules
-Add idempotent Razorpay webhook ingestion
-Implement payment recovery state transitions
-Block recovery after a captured payment
-Detect payment degradation across provider cohorts
-Compare RecoveryOS against static retry baseline
-Explain recovery decisions with Gemini evidence
+Recovery workflow docs
+Webhook ingestion
+Payment state engine
+Recovery safety rules
+Incident detection
+Policy benchmark
+Gemini explanations
 ```
 
 Avoid vague or mechanical messages:
@@ -145,10 +145,10 @@ final changes
 
 Guidelines:
 
-- Start with a verb such as `Add`, `Implement`, `Prevent`, `Validate`, `Explain`, `Document`, or `Compare`.
-- Describe the behavior or purpose, not the filenames touched.
-- Keep the subject short enough to scan in `git log`.
-- Use the commit body for important reasoning, constraints, migrations, or follow-up work.
+- Keep the subject to a small overview of the changed area.
+- Prefer familiar nouns such as `webhooks`, `simulator`, `safety`, `dashboard`, or `tests`.
+- Avoid long, sentence-like subjects and detailed implementation claims.
+- Use the commit body only when an important migration, constraint, or follow-up needs recording.
 - Do not claim a test, metric, or integration works unless it was verified.
 
 ---
