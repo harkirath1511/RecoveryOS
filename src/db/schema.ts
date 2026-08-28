@@ -1,0 +1,5 @@
+import { bigint, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+
+export const journeyState = pgEnum("journey_state", ["CREATED", "ATTEMPTED", "FAILED_PENDING_VERIFICATION", "RETRY_ELIGIBLE", "AUTHORIZED", "CAPTURED", "HARD_DECLINED", "EXPIRED", "CANCELLED", "MANUAL_REVIEW"]);
+export const paymentJourneys = pgTable("payment_journeys", { id: uuid("id").defaultRandom().primaryKey(), razorpayOrderId: text("razorpay_order_id").unique(), state: journeyState("state").notNull().default("CREATED"), outstandingAmount: bigint("outstanding_amount", { mode: "number" }).notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow() });
+export const webhookEvents = pgTable("webhook_events", { id: uuid("id").defaultRandom().primaryKey(), razorpayEventId: text("razorpay_event_id").notNull().unique(), eventType: text("event_type").notNull(), payload: jsonb("payload").notNull(), receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow() });
