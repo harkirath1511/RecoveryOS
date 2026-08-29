@@ -3,6 +3,7 @@ import { chooseRulesAction } from "@/lib/recovery/rules-policy";
 import { evaluateRecoveryAction, recoveryActions } from "@/lib/recovery/safety-policy";
 import { simulatePaymentAttempts } from "@/lib/recovery/simulator";
 import { LiveJourneys } from "./live-journeys";
+import { RecoveryLinkConsole } from "./recovery-link-console";
 
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 const rupees = (paise: number) =>
@@ -34,6 +35,7 @@ export function RecoveryDashboard() {
       <article className="panel"><div className="panel-heading"><div><p className="card-label">Safe next step</p><h2>{decision.action.replaceAll("_", " ")}</h2></div><span className="safe-pill">Safety cleared</span></div><p className="action-explanation">{decision.reason} The deterministic safety engine permits only verification while a late capture may still arrive.</p><div className="allowed-list"><span>Permitted now</span><strong>{allowed.map((action) => action.replaceAll("_", " ")).join(" · ")}</strong></div></article>
     </section>
     <LiveJourneys />
+    <RecoveryLinkConsole />
     <section className="audit-strip"><div><span>Directly recovered</span><strong>₹0</strong></div><div><span>Natural late captures</span><strong>₹0</strong></div><div><span>Unattributed captures</span><strong>₹0</strong></div><p>Demo environment only. No live money, real customer data, or automatic customer messaging.</p></section>
   </main>;
 }
