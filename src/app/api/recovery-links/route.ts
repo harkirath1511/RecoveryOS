@@ -5,11 +5,13 @@ import { evaluateRecoveryAction } from "@/lib/recovery/safety-policy";
 import { createDatabase } from "@/db/client";
 import { recoveryTokens } from "@/db/schema";
 import { randomBytes } from "node:crypto";
+import { requireOperator } from "@/lib/auth/session";
 
 const requestSchema = z.object({ journeyState: z.enum(["RETRY_ELIGIBLE", "FAILED_PENDING_VERIFICATION"]), outstandingAmount: z.number().int().positive(), automatedRecoveryActions: z.number().int().min(0).max(2), customer: z.object({ name: z.string().min(1).optional(), email: z.string().email().optional(), contact: z.string().min(8).optional() }), referenceId: z.string().min(1).max(40) });
 
 export async function POST(request: Request) {
   try {
+    const unauthorized=await requireOperator(); if(unauthorized)return unauthorized;
     const input = requestSchema.parse(await request.json());
     const safety = evaluateRecoveryAction({ ...input, maxAutomatedRecoveryActions: 2, hardDeclineDetected: false, hasConflictingFinancialState: false, lateAuthorizationGracePeriodActive: false }, "CREATE_PAYMENT_LINK");
     if (!safety.allowed) return NextResponse.json({ created: false, safety }, { status: 409 });
