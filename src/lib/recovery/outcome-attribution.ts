@@ -5,6 +5,7 @@ export const attributionCategories = [
   "NATURAL_LATE_CAPTURE",
   "UNATTRIBUTED_CAPTURE",
   "NO_CAPTURE",
+  "DUPLICATE_PREVENTED",
 ] as const;
 
 export type AttributionCategory = (typeof attributionCategories)[number];

@@ -37,6 +37,20 @@ export type PaymentSimulationConfig = {
   currentStartAt: number;
   intervalMs: number;
   scenario: DegradationScenario;
+  virtualTime: {
+    delayedAuthorizationMs: number;
+    duplicateEventRate: number;
+    outOfOrderEventRate: number;
+  };
+};
+
+export type SimulatedPaymentEvent = {
+  id: string;
+  attemptId: string;
+  type: "PAYMENT_FAILED" | "PAYMENT_AUTHORIZED" | "PAYMENT_CAPTURED";
+  occurredAt: number;
+  deliveredAt: number;
+  duplicate: boolean;
 };
 
 export const defaultSimulationConfig: PaymentSimulationConfig = {
@@ -54,6 +68,7 @@ export const defaultSimulationConfig: PaymentSimulationConfig = {
     failureRate: 0.69,
     affectedShare: 0.35,
   },
+  virtualTime: { delayedAuthorizationMs: 0, duplicateEventRate: 0, outOfOrderEventRate: 0 },
 };
 
 export function simulatePaymentAttempts(
@@ -66,6 +81,31 @@ export function simulatePaymentAttempts(
     ...createAttempts(config, random, "BASELINE", config.baselineAttempts),
     ...createAttempts(config, random, "CURRENT", config.currentAttempts),
   ];
+}
+
+/**
+ * Event delivery is modelled separately from payment occurrence so test scenarios can
+ * exercise delayed authorisations, duplicate webhooks, and out-of-order webhooks.
+ */
+export function simulatePaymentEvents(overrides: Partial<PaymentSimulationConfig> = {}): SimulatedPaymentEvent[] {
+  const config = mergeConfig(overrides);
+  const random = createSeededRandom(config.seed + 1);
+  const virtual = config.virtualTime!;
+  const events = simulatePaymentAttempts(config).flatMap((attempt) => {
+    const type = attempt.succeeded ? "PAYMENT_CAPTURED" : "PAYMENT_FAILED";
+    const delayedAuthorization = attempt.succeeded && virtual.delayedAuthorizationMs > 0
+      ? [{ id: `${attempt.id}-authorized`, attemptId: attempt.id, type: "PAYMENT_AUTHORIZED" as const, occurredAt: attempt.occurredAt + 1, deliveredAt: attempt.occurredAt + virtual.delayedAuthorizationMs, duplicate: false }]
+      : [];
+    const deliveredAt = virtual.outOfOrderEventRate > 0 && random() < virtual.outOfOrderEventRate
+      ? Math.max(0, attempt.occurredAt - Math.max(1, config.intervalMs))
+      : attempt.occurredAt;
+    const primary: SimulatedPaymentEvent = { id: `${attempt.id}-event`, attemptId: attempt.id, type, occurredAt: attempt.occurredAt, deliveredAt, duplicate: false };
+    const duplicate = virtual.duplicateEventRate > 0 && random() < virtual.duplicateEventRate
+      ? [{ ...primary, id: `${primary.id}-duplicate`, deliveredAt: primary.deliveredAt + 1, duplicate: true }]
+      : [];
+    return [...delayedAuthorization, primary, ...duplicate];
+  });
+  return events.sort((left, right) => left.deliveredAt - right.deliveredAt || left.id.localeCompare(right.id));
 }
 
 function createAttempts(
@@ -108,6 +148,10 @@ function mergeConfig(overrides: Partial<PaymentSimulationConfig>): PaymentSimula
     scenario: {
       ...defaultSimulationConfig.scenario,
       ...overrides.scenario,
+    },
+    virtualTime: {
+      ...defaultSimulationConfig.virtualTime,
+      ...overrides.virtualTime,
     },
   };
 }

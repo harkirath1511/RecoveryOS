@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { detectPaymentIncident } from "./incident-detector";
-import { simulatePaymentAttempts } from "./simulator";
+import { simulatePaymentAttempts, simulatePaymentEvents } from "./simulator";
 
 describe("payment simulator", () => {
   it("is reproducible for the same seed", () => {
@@ -22,6 +22,13 @@ describe("payment simulator", () => {
     expect(currentTimeouts.every((attempt) => attempt.provider === "HDFC")).toBe(true);
     expect(currentTimeouts.every((attempt) => attempt.method === "UPI")).toBe(true);
     expect(currentTimeouts.every((attempt) => attempt.device === "ANDROID")).toBe(true);
+  });
+
+  it("injects delayed, duplicate, and out-of-order deliveries in virtual time", () => {
+    const events = simulatePaymentEvents({ seed: 42, baselineAttempts: 5, currentAttempts: 5, virtualTime: { delayedAuthorizationMs: 10, duplicateEventRate: 1, outOfOrderEventRate: 1 } });
+    expect(events.some((event) => event.type === "PAYMENT_AUTHORIZED")).toBe(true);
+    expect(events.some((event) => event.duplicate)).toBe(true);
+    expect(events.some((event) => event.deliveredAt < event.occurredAt)).toBe(true);
   });
 });
 

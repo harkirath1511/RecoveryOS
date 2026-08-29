@@ -50,6 +50,10 @@ export function evaluateRecoveryAction(
     return allow(action, "STOP_ALLOWED", "Stopping recovery is always safe.");
   }
 
+  if (action === "MANUAL_REVIEW" && (context.hardDeclineDetected || context.journeyState === "HARD_DECLINED")) {
+    return allow(action, "HARD_DECLINE_REQUIRES_REVIEW", "Hard decline is routed to manual review.");
+  }
+
   if (isTerminalPaymentJourneyState(context.journeyState)) {
     return block(
       action,
@@ -85,9 +89,7 @@ export function evaluateRecoveryAction(
   }
 
   if (context.hardDeclineDetected) {
-    return action === "MANUAL_REVIEW"
-      ? allow(action, "HARD_DECLINE_REQUIRES_REVIEW", "Hard decline is routed to manual review.")
-      : block(
+    return block(
           action,
           "HARD_DECLINE",
           "Hard declines cannot trigger automated recovery.",

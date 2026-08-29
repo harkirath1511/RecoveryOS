@@ -2,12 +2,12 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { createDatabase } from "@/db/client";
 import { paymentJourneys, recoveryTokens } from "@/db/schema";
-import { isRecoveryTokenUsable } from "@/lib/recovery/token-lifecycle";
+import { isRecoveryTokenUsable, recoveryTokenDigest } from "@/lib/recovery/token-lifecycle";
 
 export default async function RecoveryPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const database = createDatabase();
-  const [recovery] = await database.select().from(recoveryTokens).where(eq(recoveryTokens.token, token)).limit(1);
+  const [recovery] = await database.select().from(recoveryTokens).where(eq(recoveryTokens.tokenDigest, recoveryTokenDigest(token))).limit(1);
   if (!recovery) notFound();
   const [journey] = recovery.journeyId ? await database.select().from(paymentJourneys).where(eq(paymentJourneys.id, recovery.journeyId)).limit(1) : [];
   if (journey?.state === "CAPTURED") return <RecoveryStatus title="Payment already completed" message="This recovery journey has a provider-verified capture. No further payment is needed." />;

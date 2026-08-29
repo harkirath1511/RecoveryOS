@@ -52,6 +52,10 @@ describe("recovery safety policy", () => {
     expect(evaluateRecoveryAction(hardDeclineContext, "CREATE_PAYMENT_LINK").allowed).toBe(false);
   });
 
+  it("allows a hard-declined journey itself to enter manual review", () => {
+    expect(evaluateRecoveryAction({ ...safeContext, journeyState: "HARD_DECLINED", hardDeclineDetected: true }, "MANUAL_REVIEW")).toMatchObject({ allowed: true, ruleId: "HARD_DECLINE_REQUIRES_REVIEW" });
+  });
+
   it("enforces the money-moving action limit", () => {
     const decision = evaluateRecoveryAction(
       { ...safeContext, automatedRecoveryActions: 2 },

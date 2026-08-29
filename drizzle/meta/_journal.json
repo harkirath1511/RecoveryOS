@@ -50,6 +50,41 @@
       "when": 1788003000000,
       "tag": "0006_benchmark_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788004000000,
+      "tag": "0007_live_policy_evidence",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788005000000,
+      "tag": "0008_payment_truth_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788006000000,
+      "tag": "0009_recovery_job_reliability",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788007000000,
+      "tag": "0010_safety_enforcement",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788008000000,
+      "tag": "0011_incident_truth_and_scenarios",
+      "breakpoints": true
     }
   ]
 }

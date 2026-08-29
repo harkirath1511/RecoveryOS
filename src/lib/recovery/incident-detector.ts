@@ -1,5 +1,16 @@
 import type { SimulatedPaymentAttempt } from "./simulator";
 
+/** The detector deliberately only needs normalized payment facts, not simulator data. */
+export type DetectablePaymentAttempt = {
+  id: string;
+  method: string;
+  provider: string;
+  device: string;
+  errorCode: string;
+  succeeded: boolean;
+  period: "BASELINE" | "CURRENT";
+};
+
 export type IncidentDetectorConfig = {
   minAttempts: number;
   minAbsoluteSuccessRateDrop: number;
@@ -36,7 +47,7 @@ export const defaultIncidentDetectorConfig: IncidentDetectorConfig = {
 };
 
 export function detectPaymentIncident(
-  attempts: readonly SimulatedPaymentAttempt[],
+  attempts: readonly DetectablePaymentAttempt[],
   config: Partial<IncidentDetectorConfig> = {},
 ): PaymentIncident | null {
   const detectorConfig = { ...defaultIncidentDetectorConfig, ...config };
@@ -77,13 +88,13 @@ export function detectPaymentIncident(
 }
 
 function buildSegments(
-  baseline: readonly SimulatedPaymentAttempt[],
-  current: readonly SimulatedPaymentAttempt[],
+  baseline: readonly DetectablePaymentAttempt[],
+  current: readonly DetectablePaymentAttempt[],
 ): Array<{ key: string; label: string; baseline: CohortMetrics; current: CohortMetrics }> {
   const segmenters: Array<{
     key: string;
-    groupKey: (attempt: SimulatedPaymentAttempt) => string;
-    label: (groupKey: string, currentGroup: readonly SimulatedPaymentAttempt[]) => string;
+    groupKey: (attempt: DetectablePaymentAttempt) => string;
+    label: (groupKey: string, currentGroup: readonly DetectablePaymentAttempt[]) => string;
   }> = [
     {
       key: "provider",
@@ -99,6 +110,25 @@ function buildSegments(
       key: "device",
       groupKey: (attempt) => attempt.device,
       label: (groupKey) => `Device: ${groupKey}`,
+    },
+    {
+      key: "error",
+      groupKey: (attempt) => attempt.errorCode,
+      label: (groupKey) => `Error: ${groupKey}`,
+    },
+    {
+      key: "provider-method-device",
+      groupKey: (attempt) => `${attempt.provider}|${attempt.method}|${attempt.device}`,
+      label: (groupKey, currentGroup) => {
+        const [provider, method, device] = groupKey.split("|");
+        const error = dominantValue(currentGroup.filter((attempt) => !attempt.succeeded), (attempt) => attempt.errorCode);
+        return `Provider: ${provider} · Method: ${method} · Device: ${device} · Error: ${error}`;
+      },
+    },
+    {
+      key: "provider-error",
+      groupKey: (attempt) => `${attempt.provider}|${attempt.errorCode}`,
+      label: (groupKey) => `Provider · error: ${groupKey.replaceAll("|", " · ")}`,
     },
     {
       key: "provider-method",
@@ -167,7 +197,7 @@ function hasMaterialDrop(
   );
 }
 
-function summarize(attempts: readonly SimulatedPaymentAttempt[]): CohortMetrics {
+function summarize(attempts: readonly DetectablePaymentAttempt[]): CohortMetrics {
   const successes = attempts.filter((attempt) => attempt.succeeded).length;
 
   return {
@@ -198,21 +228,21 @@ function calculateZScore(baseline: CohortMetrics, current: CohortMetrics): numbe
 }
 
 function groupByLabel(
-  attempts: readonly SimulatedPaymentAttempt[],
-  labelForAttempt: (attempt: SimulatedPaymentAttempt) => string,
-): Map<string, SimulatedPaymentAttempt[]> {
+  attempts: readonly DetectablePaymentAttempt[],
+  labelForAttempt: (attempt: DetectablePaymentAttempt) => string,
+): Map<string, DetectablePaymentAttempt[]> {
   return attempts.reduce((groups, attempt) => {
     const label = labelForAttempt(attempt);
     const group = groups.get(label) ?? [];
     group.push(attempt);
     groups.set(label, group);
     return groups;
-  }, new Map<string, SimulatedPaymentAttempt[]>());
+  }, new Map<string, DetectablePaymentAttempt[]>());
 }
 
 function dominantValue<T extends string>(
-  attempts: readonly SimulatedPaymentAttempt[],
-  valueForAttempt: (attempt: SimulatedPaymentAttempt) => T,
+  attempts: readonly DetectablePaymentAttempt[],
+  valueForAttempt: (attempt: DetectablePaymentAttempt) => T,
 ): T | "UNKNOWN" {
   const counts = new Map<T, number>();
 

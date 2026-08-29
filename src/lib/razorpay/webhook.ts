@@ -13,8 +13,3 @@ export function verifyRazorpayWebhook(rawBody: string, signature: string | null,
   const stableId = eventId ?? `${payload.event}:${payment?.entity?.id ?? createHmac("sha256", secret).update(rawBody).digest("hex")}`;
   return { eventId: stableId, eventType: payload.event, payload };
 }
-
-export class WebhookIdempotencyStore {
-  private readonly seen = new Set<string>();
-  accept(eventId: string): boolean { if (this.seen.has(eventId)) return false; this.seen.add(eventId); return true; }
-}
