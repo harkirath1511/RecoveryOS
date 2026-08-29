@@ -73,3 +73,4 @@ h2 {
 .recovery-button { margin-top: 1rem; border: 0; border-radius: .65rem; padding: .8rem 1rem; background: var(--accent); color: #07111f; font: inherit; font-weight: 800; cursor: pointer; }.panel a { color: var(--accent); font-weight: 700; }
 .explanation-text { margin: 1rem 0 0; color: var(--muted); line-height: 1.6; white-space: pre-wrap; }
 .ops-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-top: 1.2rem; }.ops-grid div { display:grid; gap:.35rem; }.ops-grid span { color:var(--muted); font-size:.8rem; }.ops-grid strong { font-size:1.6rem; } @media (max-width:760px) {.ops-grid{grid-template-columns:1fr;}}
+input { display:block; width:min(100%,24rem); margin-top:1.5rem; border:1px solid rgba(232,238,251,.2); border-radius:.65rem; padding:.8rem; background:#101f33; color:var(--text); font:inherit; }

@@ -1,0 +1,4 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+export default function LoginPage(){const router=useRouter();const [password,setPassword]=useState("");const [error,setError]=useState("");async function submit(e:React.FormEvent){e.preventDefault();const response=await fetch("/api/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password})});if(response.ok)router.push("/");else setError("Invalid operator password.");}return <main className="shell"><p className="eyebrow">RecoveryOS / operator access</p><h1>Enter the command center.</h1><form onSubmit={submit}><input aria-label="Operator password" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Operator password"/><button className="recovery-button" type="submit">Sign in</button>{error&&<p className="panel-footnote">{error}</p>}</form></main>}
