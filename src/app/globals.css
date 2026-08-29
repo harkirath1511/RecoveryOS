@@ -72,3 +72,4 @@ h2 {
 .live-panel { margin-top: 1rem; }.journey-list { margin-top: 1.2rem; }.journey-row { display: flex; justify-content: space-between; gap: 1rem; padding: .8rem 0; border-top: 1px solid rgba(232,238,251,.14); color: var(--muted); font-size: .85rem; }.journey-row strong { color: var(--accent); text-align: right; }
 .recovery-button { margin-top: 1rem; border: 0; border-radius: .65rem; padding: .8rem 1rem; background: var(--accent); color: #07111f; font: inherit; font-weight: 800; cursor: pointer; }.panel a { color: var(--accent); font-weight: 700; }
 .explanation-text { margin: 1rem 0 0; color: var(--muted); line-height: 1.6; white-space: pre-wrap; }
+.ops-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-top: 1.2rem; }.ops-grid div { display:grid; gap:.35rem; }.ops-grid span { color:var(--muted); font-size:.8rem; }.ops-grid strong { font-size:1.6rem; } @media (max-width:760px) {.ops-grid{grid-template-columns:1fr;}}
