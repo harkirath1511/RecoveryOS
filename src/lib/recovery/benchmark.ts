@@ -6,14 +6,15 @@ import { simulatePaymentAttempts, type SimulatedPaymentAttempt } from "./simulat
 
 export type BenchmarkPolicy = "STATIC_RETRY" | "RULES_ONLY" | "RECOVERYOS";
 export type BenchmarkMetrics = { policy: BenchmarkPolicy; directRecoveredAmount: number; recoveryRate: number; actionsTaken: number; attemptsPerRecovery: number };
-export type BenchmarkResult = { trainingSeed: number; evaluationSeed: number; metrics: BenchmarkMetrics[]; reproducibilityKey: string };
+export type BenchmarkResult = { trainingSeed: number; evaluationSeed: number; volume: number; metrics: BenchmarkMetrics[]; reproducibilityKey: string };
 
 const actions: RecoveryAction[] = ["RETRY_ORIGINAL_CHECKOUT", "OFFER_ALTERNATE_CHECKOUT", "CREATE_PAYMENT_LINK"];
 
-export function runHeldOutBenchmark(trainingSeed = 101, evaluationSeed = 202): BenchmarkResult {
+export function runHeldOutBenchmark(trainingSeed = 101, evaluationSeed = 202, volume = 300): BenchmarkResult {
   if (trainingSeed === evaluationSeed) throw new Error("Training and evaluation seeds must differ.");
-  const training = failedAttempts(trainingSeed);
-  const evaluation = failedAttempts(evaluationSeed);
+  if (!Number.isInteger(volume) || volume < 100 || volume > 2_000) throw new Error("Benchmark volume must be between 100 and 2000.");
+  const training = failedAttempts(trainingSeed, volume);
+  const evaluation = failedAttempts(evaluationSeed, volume);
   let state = createLinUcbState(actions, encodeRecoveryContext(toContext(training[0]!)).length);
 
   for (const attempt of training) {
@@ -23,7 +24,7 @@ export function runHeldOutBenchmark(trainingSeed = 101, evaluationSeed = 202): B
 
   const policies: BenchmarkPolicy[] = ["STATIC_RETRY", "RULES_ONLY", "RECOVERYOS"];
   const metrics = policies.map((policy) => scorePolicy(policy, evaluation, state, evaluationSeed));
-  return { trainingSeed, evaluationSeed, metrics, reproducibilityKey: `benchmark-v1:${trainingSeed}:${evaluationSeed}:${evaluation.length}` };
+  return { trainingSeed, evaluationSeed, volume, metrics, reproducibilityKey: `benchmark-v2:${trainingSeed}:${evaluationSeed}:${volume}:${evaluation.length}` };
 }
 
 function scorePolicy(policy: BenchmarkPolicy, attempts: SimulatedPaymentAttempt[], state: ReturnType<typeof createLinUcbState>, seed: number): BenchmarkMetrics {
@@ -43,8 +44,8 @@ function scorePolicy(policy: BenchmarkPolicy, attempts: SimulatedPaymentAttempt[
   return { policy, directRecoveredAmount: recovered, recoveryRate: successfulRecoveries / attempts.length, actionsTaken: attempts.length, attemptsPerRecovery: successfulRecoveries === 0 ? 0 : attempts.length / successfulRecoveries };
 }
 
-function failedAttempts(seed: number): SimulatedPaymentAttempt[] {
-  return simulatePaymentAttempts({ seed, baselineAttempts: 300, currentAttempts: 300 }).filter((attempt) => attempt.period === "CURRENT" && !attempt.succeeded);
+function failedAttempts(seed: number, volume: number): SimulatedPaymentAttempt[] {
+  return simulatePaymentAttempts({ seed, baselineAttempts: volume, currentAttempts: volume }).filter((attempt) => attempt.period === "CURRENT" && !attempt.succeeded);
 }
 
 function toContext(attempt: SimulatedPaymentAttempt): RecoveryPolicyContext {

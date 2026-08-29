@@ -9,6 +9,9 @@ import { OperationsPanels } from "./operations-panels";
 import { PolicyConsole } from "./policy-console";
 import { AuditTimeline } from "./audit-timeline";
 import { OutcomeTotals } from "./outcome-totals";
+import { RecoveryLab } from "./recovery-lab";
+import { ManualReviewQueue } from "./manual-review-queue";
+import { IncidentDetail } from "./incident-detail";
 
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 const rupees = (paise: number) =>
@@ -42,8 +45,11 @@ export function RecoveryDashboard() {
     <LiveJourneys />
     <RecoveryLinkConsole />
     <IncidentExplanation />
+    <IncidentDetail />
     <OperationsPanels />
     <PolicyConsole />
+    <RecoveryLab />
+    <ManualReviewQueue />
     <AuditTimeline />
     <OutcomeTotals />
   </main>;
