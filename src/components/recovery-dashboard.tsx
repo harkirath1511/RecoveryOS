@@ -2,6 +2,7 @@ import { detectPaymentIncident } from "@/lib/recovery/incident-detector";
 import { chooseRulesAction } from "@/lib/recovery/rules-policy";
 import { evaluateRecoveryAction, recoveryActions } from "@/lib/recovery/safety-policy";
 import { simulatePaymentAttempts } from "@/lib/recovery/simulator";
+import { LiveJourneys } from "./live-journeys";
 
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 const rupees = (paise: number) =>
@@ -32,6 +33,7 @@ export function RecoveryDashboard() {
       <article className="panel"><div className="panel-heading"><div><p className="card-label">Diagnosis</p><h2>Why this is happening</h2></div><span className="status-pill">High confidence</span></div><div className="cause-row"><span>Root cohort</span><strong>HDFC · UPI · Android</strong></div><div className="cause-row"><span>Dominant evidence</span><strong>Timeout failures</strong></div><div className="cause-row"><span>Success-rate drop</span><strong className="danger">{percent(incident.topSegment.successRateDrop)}</strong></div><p className="panel-footnote">Ranked statistically from baseline versus current payment cohorts. This is reproducible simulator evidence.</p></article>
       <article className="panel"><div className="panel-heading"><div><p className="card-label">Safe next step</p><h2>{decision.action.replaceAll("_", " ")}</h2></div><span className="safe-pill">Safety cleared</span></div><p className="action-explanation">{decision.reason} The deterministic safety engine permits only verification while a late capture may still arrive.</p><div className="allowed-list"><span>Permitted now</span><strong>{allowed.map((action) => action.replaceAll("_", " ")).join(" · ")}</strong></div></article>
     </section>
+    <LiveJourneys />
     <section className="audit-strip"><div><span>Directly recovered</span><strong>₹0</strong></div><div><span>Natural late captures</span><strong>₹0</strong></div><div><span>Unattributed captures</span><strong>₹0</strong></div><p>Demo environment only. No live money, real customer data, or automatic customer messaging.</p></section>
   </main>;
 }
