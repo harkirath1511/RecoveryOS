@@ -36,6 +36,13 @@
       "when": 1788001000000,
       "tag": "0004_verification_workflows",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788002000000,
+      "tag": "0005_recovery_outcomes",
+      "breakpoints": true
     }
   ]
 }
