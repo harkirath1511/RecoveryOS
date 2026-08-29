@@ -15,6 +15,13 @@
       "when": 1787997446490,
       "tag": "0001_odd_miek",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787998173525,
+      "tag": "0002_handy_retro_girl",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,2 @@
+import type { BenchmarkResult } from "./benchmark";
+export function summarizeBenchmark(result: BenchmarkResult) { const staticRetry=result.metrics.find(m=>m.policy==="STATIC_RETRY")!; const recoveryOs=result.metrics.find(m=>m.policy==="RECOVERYOS")!; return { reproducibilityKey: result.reproducibilityKey, directRecoveredAmount: recoveryOs.directRecoveredAmount, incrementalRecoveredAmount: recoveryOs.directRecoveredAmount-staticRetry.directRecoveredAmount, recoveryRate: recoveryOs.recoveryRate, attemptsPerRecovery: recoveryOs.attemptsPerRecovery, synthetic:true }; }
