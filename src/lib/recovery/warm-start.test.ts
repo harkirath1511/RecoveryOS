@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { generateSafeLoggedInteractions, warmStartBandit } from "./warm-start";
+describe("safe logged warm start",()=>{it("is deterministic and uses one permitted action per interaction",()=>{const first=generateSafeLoggedInteractions(11,22);expect(first).toEqual(generateSafeLoggedInteractions(11,22));expect(first.every(i=>["RETRY_ORIGINAL_CHECKOUT","OFFER_ALTERNATE_CHECKOUT","CREATE_PAYMENT_LINK"].includes(i.action))).toBe(true);});it("rejects overlapping train and evaluation seeds",()=>expect(()=>warmStartBandit(1,1)).toThrow("must differ"));it("trains a versioned state",()=>expect(warmStartBandit().state.version).toBe("recovery-v1"));});

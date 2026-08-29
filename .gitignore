@@ -1,0 +1,15 @@
+# dependencies and build output
+node_modules/
+.next/
+coverage/
+.pnpm-store/
+*.tsbuildinfo
+
+# local environment and credentials
+.env
+.env.*
+!.env.example
+
+# editor and operating-system files
+.DS_Store
+*.log
