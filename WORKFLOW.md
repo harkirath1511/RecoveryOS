@@ -6,7 +6,7 @@ This workflow is mandatory for RecoveryOS development. It keeps `main` stable, c
 
 The guiding rule is:
 
-> Commit coherent, verified progress. Use a branch when the implementation is uncertain, risky, experimental, or likely to be discarded.
+> Commit only a complete, verified major feature. Use a branch when the implementation is uncertain, risky, experimental, or likely to be discarded.
 
 ---
 
@@ -17,7 +17,7 @@ The guiding rule is:
 - Do not combine unrelated implementation areas in one commit.
 - Do not rewrite or discard another contributor's changes without explicit agreement.
 - Review the complete diff before every commit.
-- Prefer small, meaningful milestones over one large final commit.
+- Prefer a small number of substantial, user-demonstrable feature commits over many internal checkpoints.
 - A documentation-only change may be committed without application tests, but its rendered Markdown and links must be reviewed.
 
 ---
@@ -74,28 +74,26 @@ If an experiment fails, preserve the conclusion in a short note when it prevents
 
 ## 5. Commit frequency
 
-Commit after a meaningful implementation checkpoint when:
+Commit only after a major feature shipment when:
 
-- The intended behavior is complete for that checkpoint.
-- Relevant tests pass.
-- Type checking and linting pass when those tools are available.
-- The diff contains one understandable concern.
+- The feature is complete end-to-end, not merely a helper, schema, route, test, or partial UI.
+- A user, judge, or operator can demonstrate the new capability meaningfully.
+- Relevant tests pass, along with type checking and linting when available.
+- Database migrations, APIs, UI, and safety handling required by that feature ship together.
 - No secret or environment value is included.
 
-Do not commit after every tiny edit. Do not wait until the entire project is finished.
+Do not commit helpers, small fixes, partial layers, isolated internal refactors, generated migrations, or tests by themselves. Keep them uncommitted on the feature branch until the enclosing feature is complete.
 
-A reasonable development session may contain several coherent commits, for example:
+A reasonable development session may contain one or two commits, for example:
 
-1. Add the payment-event schema and migration.
-2. Implement idempotent webhook ingestion with tests.
-3. Implement valid payment state transitions with tests.
-4. Add out-of-order event handling and audit evidence.
+1. Ship the complete signed-webhook ingestion feature: schema, migration, validation, idempotency, state updates, tests, and dashboard evidence.
+2. Ship the complete recovery execution feature: safety decision, workflow, delayed verification, tokenized recovery page, Razorpay Test Mode link, audit trail, and tests.
 
 ---
 
 ## 6. Required commit checkpoints
 
-The expected project history should include checkpoints resembling the following. Combine adjacent checkpoints only when they are genuinely one atomic change.
+The expected project history should include feature-level checkpoints resembling the following. Internal implementation stages belong in the same commit as the demonstrable feature they complete.
 
 1. **Documentation:** architecture, safety rules, and workflow.
 2. **Foundation:** Next.js scaffold, strict TypeScript, linting, testing, and environment validation.
