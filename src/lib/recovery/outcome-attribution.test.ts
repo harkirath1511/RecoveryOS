@@ -16,4 +16,8 @@ describe("outcome attribution", () => {
     const outcome = attributeOutcome(prediction, { capturedAmount: 100_000, captureVerified: true, capturedDuringGracePeriod: false });
     expect(outcome).toMatchObject({ category: "UNATTRIBUTED_CAPTURE", policyReward: 0, unattributedCaptureAmount: 100_000 });
   });
+  it("uses the documented terminal name when a verified workflow has no capture", () => {
+    const outcome = attributeOutcome(prediction, { capturedAmount: 0, captureVerified: false, capturedDuringGracePeriod: false });
+    expect(outcome).toMatchObject({ category: "NOT_RECOVERED", policyReward: 0 });
+  });
 });

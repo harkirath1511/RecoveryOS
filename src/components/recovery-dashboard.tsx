@@ -1,5 +1,6 @@
 import { LiveJourneys } from "./live-journeys";
 import { RecoveryLinkConsole } from "./recovery-link-console";
+import { IncidentExplanation } from "./incident-explanation";
 import { OperationsPanels } from "./operations-panels";
 import { PolicyConsole } from "./policy-console";
 import { AuditTimeline } from "./audit-timeline";
@@ -14,6 +15,7 @@ export function RecoveryDashboard() {
     <IncidentDetail />
     <LiveJourneys />
     <RecoveryLinkConsole />
+    <IncidentExplanation />
     <OperationsPanels />
     <PolicyConsole />
     <RecoveryLab />

@@ -16,7 +16,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@google/genai": "^2.19.0",
     "@upstash/qstash": "^2.11.3",
     "drizzle-orm": "^0.45.2",
     "next": "^16.0.0",

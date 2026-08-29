@@ -4,7 +4,7 @@ export const attributionCategories = [
   "DIRECT_RECOVERY",
   "NATURAL_LATE_CAPTURE",
   "UNATTRIBUTED_CAPTURE",
-  "NO_CAPTURE",
+  "NOT_RECOVERED",
   "DUPLICATE_PREVENTED",
 ] as const;
 
@@ -39,7 +39,7 @@ export function attributeOutcome(
   evidence: VerifiedOutcomeEvidence,
 ): AttributedOutcome {
   if (!evidence.captureVerified || evidence.capturedAmount <= 0) {
-    return emptyOutcome(prediction, "NO_CAPTURE");
+    return emptyOutcome(prediction, "NOT_RECOVERED");
   }
 
   if (evidence.recoveryFlowToken && evidence.captureFlowToken === evidence.recoveryFlowToken) {

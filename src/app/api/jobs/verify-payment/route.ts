@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createDatabase } from "@/db/client";
-import { auditEntries, paymentJourneys, recoveryWorkflows } from "@/db/schema";
+import { auditEntries, paymentJourneys, recoveryDecisions, recoveryOutcomes, recoveryWorkflows } from "@/db/schema";
 import { verifyQStashSignature } from "@/lib/qstash/verify";
 import { fetchRazorpayPayment } from "@/lib/razorpay/client";
 import { transitionPaymentJourney } from "@/lib/recovery/payment-journey";
@@ -27,6 +27,11 @@ export async function POST(request: Request) {
       await tx.update(paymentJourneys).set({ state: transition.state, outstandingAmount: transition.state === "CAPTURED" ? 0 : journey.outstandingAmount, terminalOutcome: transition.state === "CAPTURED" ? "CAPTURED" : journey.terminalOutcome, updatedAt: new Date() }).where(eq(paymentJourneys.id, journey.id));
       await tx.update(recoveryWorkflows).set({ status: "EXECUTED", executedAt: new Date(), attemptCount: workflow.attemptCount + 1, terminalReason: payment.status === "captured" ? "PROVIDER_CAPTURE_VERIFIED" : payment.status === "authorized" ? "PROVIDER_AUTHORIZATION_VERIFIED" : "PROVIDER_NO_CAPTURE_AFTER_GRACE", updatedAt: new Date() }).where(and(eq(recoveryWorkflows.id, workflow.id), eq(recoveryWorkflows.status, "PENDING")));
       await tx.insert(auditEntries).values({ journeyId: journey.id, entityType: "WORKFLOW", entityId: workflow.id, action: "VERIFY_PROVIDER", eventType: "PAYMENT_STATUS_VERIFIED", reason: "Razorpay payment status fetched before recovery eligibility.", previousState: journey.state, nextState: transition.state, evidence: { providerPaymentId: journey.providerPaymentId, providerStatus: payment.status } });
+      if (providerEvent === "VERIFICATION_EXPIRED") {
+        const [decision] = workflow.decisionId ? await tx.select().from(recoveryDecisions).where(eq(recoveryDecisions.id, workflow.decisionId)).limit(1) : [];
+        const [outcome] = await tx.insert(recoveryOutcomes).values({ journeyId: journey.id, decisionId: workflow.decisionId, workflowId: workflow.id, outcomeKey: `NOT_RECOVERED:${workflow.id}`, category: "NOT_RECOVERED", capturedAmount: 0, expectedRecoveryAmount: decision?.expectedRecoveryAmount ?? journey.outstandingAmount, policyReward: 0, evidence: { providerPaymentId: journey.providerPaymentId, providerStatus: payment.status, verificationWorkflowId: workflow.id, gracePeriodExpired: true } }).onConflictDoNothing().returning({ id: recoveryOutcomes.id });
+        if (outcome) await tx.insert(auditEntries).values({ journeyId: journey.id, decisionId: workflow.decisionId, outcomeId: outcome.id, entityType: "OUTCOME", entityId: outcome.id, action: "ATTRIBUTE", eventType: "NOT_RECOVERED", reason: "Provider verification completed after grace period without a capture.", evidence: { workflowId: workflow.id, providerStatus: payment.status } });
+      }
     });
     return NextResponse.json({ processed: transition.accepted, state: transition.state, providerStatus: payment.status });
   } catch (error) { return NextResponse.json({ processed: false, error: error instanceof Error ? error.message : "Invalid job" }, { status: 400 }); }

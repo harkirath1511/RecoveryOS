@@ -57,6 +57,14 @@ describe("LinUCB", () => {
     expect(ranking[0]?.action).toBe("CREATE_PAYMENT_LINK");
   });
 
+  it("deducts intervention cost as currency from expected recovered value", () => {
+    const features = encodeRecoveryContext(context);
+    let state = createLinUcbState(["CREATE_PAYMENT_LINK"], features.length);
+    state = updateLinUcb(state, "CREATE_PAYMENT_LINK", features, true);
+    const [ranking] = rankLinUcbActions(state, features, ["CREATE_PAYMENT_LINK"], context.amount, 0, { CREATE_PAYMENT_LINK: 10_000 });
+    expect(ranking?.expectedRecoveryAmount).toBeLessThan(Math.round((ranking?.predictedSuccess ?? 0) * context.amount));
+  });
+
   it("uses explicit other features for unknown categories", () => {
     const features = encodeRecoveryContext({ ...context, provider: "UNSEEN_BANK" });
     expect(features).toContain(1);

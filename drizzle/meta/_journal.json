@@ -85,6 +85,13 @@
       "when": 1788008000000,
       "tag": "0011_incident_truth_and_scenarios",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788009000000,
+      "tag": "0012_outcome_attribution_contract",
+      "breakpoints": true
     }
   ]
 }

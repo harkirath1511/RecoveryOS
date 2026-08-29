@@ -51,10 +51,14 @@ export function rankLinUcbActions(
       const predictedSuccess = clamp(dot(theta, context), 0, 1);
       const uncertainty = Math.sqrt(Math.max(0, dot(context, multiplyMatrixVector(inverse, context))));
       const explorationBonus = explorationAlpha * uncertainty;
+      // Costs are currency amounts, never probability adjustments.
       const cost = actionCosts[action] ?? 0;
-      const expectedRecoveryAmount = Math.round(Math.max(0, predictedSuccess - cost) * outstandingAmount);
+      const expectedRecoveryAmount = Math.round(Math.max(0, predictedSuccess * outstandingAmount - cost));
+      const score = outstandingAmount > 0
+        ? predictedSuccess + explorationBonus - cost / outstandingAmount
+        : predictedSuccess + explorationBonus;
 
-      return [{ action, predictedSuccess, explorationBonus, score: predictedSuccess - cost + explorationBonus, expectedRecoveryAmount }];
+      return [{ action, predictedSuccess, explorationBonus, score, expectedRecoveryAmount }];
     })
     .sort((left, right) => right.score - left.score || left.action.localeCompare(right.action));
 }

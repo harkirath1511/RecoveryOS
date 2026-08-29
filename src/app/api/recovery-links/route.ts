@@ -61,7 +61,7 @@ function isFailureForOrder(payload: unknown, orderId: string | null): boolean {
 }
 
 async function recordDuplicatePrevention(database: ReturnType<typeof createDatabase>, journey: typeof paymentJourneys.$inferSelect, reason: string, evidence: unknown) {
-  await database.transaction(async tx => { const [outcome] = await tx.insert(recoveryOutcomes).values({ journeyId: journey.id, category: "DUPLICATE_PREVENTED", capturedAmount: 0, expectedRecoveryAmount: journey.outstandingAmount, policyReward: 0, evidence: { reason, ...asRecord(evidence) } }).onConflictDoNothing().returning({ id: recoveryOutcomes.id }); if (outcome) await tx.insert(auditEntries).values({ journeyId: journey.id, outcomeId: outcome.id, entityType: "OUTCOME", entityId: outcome.id, action: "PREVENT_DUPLICATE", eventType: "DUPLICATE_PREVENTED", reason, evidence }); });
+  await database.transaction(async tx => { const [outcome] = await tx.insert(recoveryOutcomes).values({ journeyId: journey.id, outcomeKey: `DUPLICATE_PREVENTED:${journey.id}:${reason}`, category: "DUPLICATE_PREVENTED", capturedAmount: 0, expectedRecoveryAmount: journey.outstandingAmount, policyReward: 0, evidence: { reason, ...asRecord(evidence) } }).onConflictDoNothing().returning({ id: recoveryOutcomes.id }); if (outcome) await tx.insert(auditEntries).values({ journeyId: journey.id, outcomeId: outcome.id, entityType: "OUTCOME", entityId: outcome.id, action: "PREVENT_DUPLICATE", eventType: "DUPLICATE_PREVENTED", reason, evidence }); });
 }
 
 function asRecord(value: unknown): Record<string, unknown> { return value && typeof value === "object" ? value as Record<string, unknown> : { evidence: value }; }
