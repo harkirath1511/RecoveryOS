@@ -4,6 +4,7 @@ import { evaluateRecoveryAction, recoveryActions } from "@/lib/recovery/safety-p
 import { simulatePaymentAttempts } from "@/lib/recovery/simulator";
 import { LiveJourneys } from "./live-journeys";
 import { RecoveryLinkConsole } from "./recovery-link-console";
+import { IncidentExplanation } from "./incident-explanation";
 
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 const rupees = (paise: number) =>
@@ -36,6 +37,7 @@ export function RecoveryDashboard() {
     </section>
     <LiveJourneys />
     <RecoveryLinkConsole />
+    <IncidentExplanation />
     <section className="audit-strip"><div><span>Directly recovered</span><strong>₹0</strong></div><div><span>Natural late captures</span><strong>₹0</strong></div><div><span>Unattributed captures</span><strong>₹0</strong></div><p>Demo environment only. No live money, real customer data, or automatic customer messaging.</p></section>
   </main>;
 }

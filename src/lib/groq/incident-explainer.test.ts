@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { buildIncidentExplanationPrompt } from "./incident-explainer";
+describe("incident explanation prompt", () => { it("contains evidence and safety boundaries", () => { const prompt = buildIncidentExplanationPrompt({ overallBaseline: { attempts: 10, successes: 9, successRate: .9 }, overallCurrent: { attempts: 10, successes: 5, successRate: .5 }, topSegment: { key: "x", label: "Provider: HDFC", baseline: { attempts: 1, successes: 1, successRate: 1 }, current: { attempts: 1, successes: 0, successRate: 0 }, successRateDrop: 1, excessFailures: 1, zScore: 3 }, totalExcessFailures: 4 }); expect(prompt).toContain("Provider: HDFC"); expect(prompt).toContain("Do not invent facts"); }); });

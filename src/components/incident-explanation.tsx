@@ -1,0 +1,3 @@
+"use client";
+import { useState } from "react";
+export function IncidentExplanation() { const [text, setText] = useState(""); async function explain() { setText("Preparing evidence-based explanation…"); const response = await fetch("/api/incident-explanation", { method: "POST" }); const body = await response.json(); setText(body.explanation ?? body.error ?? "Explanation unavailable."); } return <section className="panel live-panel"><div className="panel-heading"><div><p className="card-label">Read-only AI explanation</p><h2>Explain the incident</h2></div><span className="safe-pill">No payment access</span></div><button className="recovery-button" onClick={explain}>Explain evidence with Groq</button>{text && <p className="explanation-text">{text}</p>}</section>; }
