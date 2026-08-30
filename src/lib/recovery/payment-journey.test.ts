@@ -16,6 +16,15 @@ describe("payment journey transitions", () => {
     });
   });
 
+  it("waits for verification when the first received event is a failure", () => {
+    const result = transitionPaymentJourney("CREATED", "PAYMENT_FAILED");
+
+    expect(result).toMatchObject({
+      accepted: true,
+      state: "FAILED_PENDING_VERIFICATION",
+    });
+  });
+
   it("accepts a late capture while verification is pending", () => {
     const result = transitionPaymentJourney(
       "FAILED_PENDING_VERIFICATION",
