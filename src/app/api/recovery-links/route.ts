@@ -33,7 +33,16 @@ export async function POST(request: Request) {
     const safetyContext = { journeyState: journey.state, outstandingAmount: journey.outstandingAmount, requestedAmount: journey.outstandingAmount, automatedRecoveryActions, maxAutomatedRecoveryActions: env.MAX_AUTOMATED_RECOVERY_ACTIONS, hardDeclineDetected: journey.state === "HARD_DECLINED", hasConflictingFinancialState: journey.state === "CAPTURED" || journey.state === "AUTHORIZED", lateAuthorizationGracePeriodActive: journey.state === "FAILED_PENDING_VERIFICATION" };
     const safetyResults = recoveryActions.map(action => evaluateRecoveryAction(safetyContext, action));
     if (journey.state === "CAPTURED" || journey.outstandingAmount <= 0 || automatedRecoveryActions >= env.MAX_AUTOMATED_RECOVERY_ACTIONS) { const ruleId = journey.state === "CAPTURED" || journey.outstandingAmount <= 0 ? "DUPLICATE_PAYMENT_GUARD" : "AUTOMATED_ACTION_LIMIT"; await recordDuplicatePrevention(database, journey, ruleId, { safetyContext, safetyResults }); return NextResponse.json({ created: false, error: "Recovery was prevented by a duplicate-payment safety guard.", ruleId }, { status: 409 }); }
-    const allowedActions = safetyResults.filter(result => result.allowed).map(result => result.action);
+    const safeActions = safetyResults.filter(result => result.allowed).map(result => result.action);
+    // Razorpay Payment Links own the original checkout order. Reopening that order
+    // after a failure can be rejected by Razorpay, so recovery must use a fresh,
+    // exact-amount Payment Link instead of retrying the original checkout.
+    const allowedActions = failureCameFromPaymentLink(failure?.payload)
+      ? safeActions.filter(action => action === "CREATE_PAYMENT_LINK")
+      : safeActions;
+    if (allowedActions.length === 0) {
+      return NextResponse.json({ created: false, error: "No safety-permitted recovery action is available for this payment origin." }, { status: 409 });
+    }
     const context = buildLiveRecoveryContext({ amount: journey.outstandingAmount, attemptNumber: automatedRecoveryActions + 1, failureReceivedAt: failure?.receivedAt, failurePayload: failure?.payload });
     const selection = await selectLiveRecoveryAction(database, context, allowedActions, journey.outstandingAmount);
     if (!selection) return NextResponse.json({ created: false, error: "The persisted LinUCB policy is not ready. Warm-start it before executing recovery." }, { status: 409 });
@@ -58,6 +67,11 @@ function isFailureForOrder(payload: unknown, orderId: string | null): boolean {
   if (!orderId || !payload || typeof payload !== "object") return false;
   const entity = (payload as { payload?: { payment?: { entity?: { order_id?: unknown } } } }).payload?.payment?.entity;
   return entity?.order_id === orderId;
+}
+
+function failureCameFromPaymentLink(payload: unknown): boolean {
+  const entity = (payload as { payload?: { payment?: { entity?: { payment_link_id?: unknown } } } } | null)?.payload?.payment?.entity;
+  return typeof entity?.payment_link_id === "string" && entity.payment_link_id.length > 0;
 }
 
 async function recordDuplicatePrevention(database: ReturnType<typeof createDatabase>, journey: typeof paymentJourneys.$inferSelect, reason: string, evidence: unknown) {
