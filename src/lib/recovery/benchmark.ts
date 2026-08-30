@@ -35,10 +35,11 @@ export function runHeldOutBenchmark(trainingSeed = 101, evaluationSeed = 202, vo
   const training = failedJourneys(trainingSeed, volume);
   const evaluation = failedJourneys(evaluationSeed, volume);
   let state = createLinUcbState(learnedActions, encodeRecoveryContext(toContext(training[0]!)).length);
+  const loggedWorkflowKeys = new Set<string>();
 
   // Logged bandit feedback: every update is for the one randomized action actually executed.
   for (const attempt of training) {
-    const lifecycle = executeLifecycle("RECOVERYOS", attempt, state, trainingSeed, true);
+    const lifecycle = executeLifecycle("RECOVERYOS", attempt, state, trainingSeed, true, loggedWorkflowKeys);
     if (learnedActions.includes(lifecycle.action)) state = updateLinUcb(state, lifecycle.action, lifecycle.features, lifecycle.directRecovered);
   }
 
@@ -50,17 +51,18 @@ export function runHeldOutBenchmark(trainingSeed = 101, evaluationSeed = 202, vo
 
 function scorePolicy(policy: BenchmarkPolicy, attempts: readonly SimulatedPaymentAttempt[], initialState: ReturnType<typeof createLinUcbState>, seed: number): BenchmarkMetrics {
   let state = initialState;
+  const workflowKeys = new Set<string>();
   const accumulator = emptyMetrics(policy);
   const pendingPolicyUpdates: Array<{ action: RecoveryAction; features: number[]; directRecovered: boolean }> = [];
   for (const [index, attempt] of attempts.entries()) {
-    const lifecycle = executeLifecycle(policy, attempt, state, seed, false);
+    const lifecycle = executeLifecycle(policy, attempt, state, seed, false, workflowKeys);
     accumulator.actionsTaken += lifecycle.action === "STOP_RECOVERY" ? 0 : 1;
     accumulator.unsafeRecommendations += lifecycle.unsafeRecommendation ? 1 : 0;
     accumulator.unsafeActions += lifecycle.unsafeAction ? 1 : 0;
     accumulator.duplicateAttempts += lifecycle.duplicateAttempt ? 1 : 0;
     accumulator.duplicatePreventions += lifecycle.duplicatePrevented ? 1 : 0;
     accumulator.interventionCostAmount += lifecycle.interventionCost;
-    if (lifecycle.naturalLate) { accumulator.naturalLateRecoveredAmount += attempt.amount; accumulator.unattributedRecoveredAmount += attempt.amount; }
+    if (lifecycle.naturalLate) accumulator.naturalLateRecoveredAmount += attempt.amount;
     if (lifecycle.directRecovered) { accumulator.directRecoveredAmount += attempt.amount; accumulator.recoveries += 1; accumulator.recoveryTimes.push(lifecycle.recoveryMinutes); }
     if (lifecycle.prediction !== null) { accumulator.calibrationSquaredError += (lifecycle.prediction - Number(lifecycle.directRecovered)) ** 2; accumulator.calibrationSampleSize += 1; }
     // Apply actual logged outcomes in bounded workflow batches; no counterfactual actions are updated.
@@ -85,7 +87,7 @@ function scorePolicy(policy: BenchmarkPolicy, attempts: readonly SimulatedPaymen
   };
 }
 
-function executeLifecycle(policy: BenchmarkPolicy, attempt: SimulatedPaymentAttempt, state: ReturnType<typeof createLinUcbState>, seed: number, randomizedLogging: boolean) {
+function executeLifecycle(policy: BenchmarkPolicy, attempt: SimulatedPaymentAttempt, state: ReturnType<typeof createLinUcbState>, seed: number, randomizedLogging: boolean, workflowKeys: Set<string>) {
   const context = toContext(attempt);
   const features = encodeRecoveryContext(context);
   const hardDecline = pseudoRandom(`${seed}:${attempt.id}:hard-decline`) < 0.02;
@@ -100,8 +102,13 @@ function executeLifecycle(policy: BenchmarkPolicy, attempt: SimulatedPaymentAtte
     : ranking?.action ?? chooseRulesAction(context, allowed).action;
   const unsafeRecommendation = !allowed.includes(proposed);
   const action = unsafeRecommendation ? safeFallback(allowed) : proposed;
-  const duplicateAttempt = pseudoRandom(`${seed}:${attempt.id}:duplicate`) < 0.08;
-  const duplicatePrevented = duplicateAttempt && action !== "STOP_RECOVERY";
+  // The same stable workflow idempotency key used by the real recovery table is
+  // replayed here. A duplicate delivery can never create a second execution.
+  const workflowKey = `benchmark:${seed}:${attempt.id}:${action}`;
+  const isExecutable = isMoneyMovingRecoveryAction(action);
+  if (isExecutable) workflowKeys.add(workflowKey);
+  const duplicateAttempt = isExecutable && pseudoRandom(`${seed}:${attempt.id}:duplicate`) < 0.08;
+  const duplicatePrevented = duplicateAttempt && workflowKeys.has(workflowKey);
   const directRecovered = !naturalLate && isMoneyMovingRecoveryAction(action) && hiddenOutcome(attempt, action, seed);
   return { action, features, naturalLate, directRecovered, unsafeRecommendation, unsafeAction: !allowed.includes(action), duplicateAttempt, duplicatePrevented, interventionCost: isMoneyMovingRecoveryAction(action) ? interventionCostPaise : 0, recoveryMinutes: naturalLate ? 3 : context.minutesSinceFailure + actionDelay(action), prediction: policy === "RECOVERYOS" && action === ranking?.action ? ranking.predictedSuccess : null };
 }

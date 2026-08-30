@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { env } from "@/lib/env";
 import { createDatabase } from "@/db/client";
 import { auditEntries, banditStates, paymentAttempts, paymentJourneys, paymentStateTransitions, recoveryDecisions, recoveryOutcomes, recoveryTokens, recoveryWorkflows, webhookEvents } from "@/db/schema";
 import { mapRazorpayEvent } from "@/lib/razorpay/event-mapping";
-import { verifyRazorpayWebhook } from "@/lib/razorpay/webhook";
+import { paymentEntitySchema, verifyRazorpayWebhook } from "@/lib/razorpay/webhook";
 import { applyPaymentEvent } from "@/lib/recovery/journey-updater";
 import { attributeOutcome } from "@/lib/recovery/outcome-attribution";
 import { restoreBanditState, serializeBanditState } from "@/lib/recovery/bandit-persistence";
@@ -14,7 +15,7 @@ import { encodeRecoveryContext, type RecoveryPolicyContext } from "@/lib/recover
 import { recoveryActions, type RecoveryAction } from "@/lib/recovery/safety-policy";
 import { cancelVerification, scheduleVerification } from "@/lib/recovery/verification-job";
 
-type PaymentEntity = { id?: string; order_id?: string; amount?: number; currency?: string; payment_link_id?: string; method?: string; bank?: string; status?: string; error_code?: string; error_source?: string; error_step?: string; error_reason?: string; created_at?: number; notes?: Record<string, unknown> };
+type PaymentEntity = z.infer<typeof paymentEntitySchema>;
 
 export async function POST(request: Request) {
   try {
@@ -63,7 +64,7 @@ async function recordOutcome(tx: Parameters<ReturnType<typeof createDatabase>["t
   if (attributed.category === "DIRECT_RECOVERY" && decision?.policy === "LINUCB" && decision.policyVersion && isRecoveryAction(decision.action) && isRecoveryPolicyContext(decision.policyContext)) { const [stored] = await tx.select().from(banditStates).where(eq(banditStates.version, decision.policyVersion)).limit(1); if (stored) { const updated = updateLinUcb(restoreBanditState(JSON.stringify(stored.state)), decision.action, encodeRecoveryContext(decision.policyContext), true); await tx.update(banditStates).set({ state: JSON.parse(serializeBanditState(updated)), updatedAt: new Date() }).where(eq(banditStates.version, decision.policyVersion)); await tx.insert(auditEntries).values({ journeyId: input.journey.id, decisionId: decision.id, outcomeId: outcome.id, entityType: "POLICY", entityId: decision.policyVersion, action: "LEARN", eventType: "LINUCB_UPDATED", reason: "Verified direct recovery.", evidence: { decisionId: decision.id, outcomeId: outcome.id, action: decision.action, reward: attributed.policyReward, context: decision.policyContext } }); } }
 }
 
-function paymentEntity(payload: unknown): PaymentEntity | null { return payload && typeof payload === "object" ? (payload as { payload?: { payment?: { entity?: PaymentEntity } } }).payload?.payment?.entity ?? null : null; }
+function paymentEntity(payload: unknown): PaymentEntity | null { const candidate = payload && typeof payload === "object" ? (payload as { payload?: { payment?: { entity?: unknown } } }).payload?.payment?.entity : undefined; const parsed = paymentEntitySchema.safeParse(candidate); return parsed.success ? parsed.data : null; }
 function digest(value: string): string { return createHash("sha256").update(value).digest("hex"); }
 function providerTime(seconds: number | undefined): Date { return seconds ? new Date(seconds * 1000) : new Date(); }
 function device(entity: PaymentEntity): string | undefined { return typeof entity.notes?.device === "string" ? entity.notes.device.toUpperCase() : undefined; }

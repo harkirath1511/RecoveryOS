@@ -5,6 +5,7 @@ import { restoreBanditState } from "./bandit-persistence";
 import { rankLinUcbActions, type RankedRecoveryAction } from "./linucb";
 import { encodeRecoveryContext, type RecoveryPolicyContext } from "./policy-context";
 import type { RecoveryAction } from "./safety-policy";
+import { env } from "@/lib/env";
 
 type Database = ReturnType<typeof createDatabase>;
 
@@ -29,6 +30,7 @@ export async function selectLiveRecoveryAction(
     encodeRecoveryContext(context),
     allowedActions,
     outstandingAmount,
+    env.LINUCB_ALPHA,
   );
   if (!rankings[0]) throw new Error("The persisted policy has no model for any safety-permitted action.");
   return { version: stored.version, context, ranking: rankings[0], rankings };

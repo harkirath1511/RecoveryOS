@@ -14,6 +14,7 @@ describe("held-out benchmark", () => {
     expect(result.volume).toBeGreaterThanOrEqual(500);
     expect(result.protocol.heldOutJourneys).toBe(result.volume);
     expect(result.metrics.every((metric) => metric.unsafeActions === 0 && metric.duplicatePreventions >= 0)).toBe(true);
+    expect(result.metrics.every((metric) => metric.naturalLateRecoveredAmount >= 0 && metric.unattributedRecoveredAmount === 0)).toBe(true);
     expect(result.metrics.find((metric) => metric.policy === "RECOVERYOS")?.calibrationSampleSize).toBeGreaterThan(0);
   }, 60_000);
 });

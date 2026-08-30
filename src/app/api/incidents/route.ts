@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { requireOperator } from "@/lib/auth/session";
 import { createDatabase } from "@/db/client";
-import { banditTrainingInteractions, downtimeSignals, incidents, paymentAttempts, paymentJourneys } from "@/db/schema";
+import { banditTrainingInteractions, downtimeSignals, incidents, paymentAttempts, paymentJourneys, recoveryDecisions } from "@/db/schema";
 import { defaultIncidentDetectorConfig, detectPaymentIncident, type DetectablePaymentAttempt } from "@/lib/recovery/incident-detector";
 import { env } from "@/lib/env";
 import { evaluateRecoveryAction, isMoneyMovingRecoveryAction, recoveryActions } from "@/lib/recovery/safety-policy";
@@ -53,13 +53,31 @@ async function closeResolvedIncidents(database: ReturnType<typeof createDatabase
 
 async function calculateRevenueAtRisk(database: ReturnType<typeof createDatabase>) {
   const eligible = await database.select().from(paymentJourneys).where(eq(paymentJourneys.state, "RETRY_ELIGIBLE"));
-  const interactions = await database.select({ id: banditTrainingInteractions.id }).from(banditTrainingInteractions);
+  if (!eligible.length) return estimateRevenueAtRisk([], { baselineRecoveryProbability: env.RISK_NO_INTERVENTION_PROBABILITY, interventionCostPaise: env.RISK_INTERVENTION_COST_PAISE });
+  const [attemptRows, decisionRows, interactionRows, activeSignals, openIncidents] = await Promise.all([
+    database.select().from(paymentAttempts),
+    database.select().from(recoveryDecisions),
+    database.select({ action: banditTrainingInteractions.action }).from(banditTrainingInteractions),
+    database.select().from(downtimeSignals).where(eq(downtimeSignals.status, "ACTIVE")),
+    database.select({ cohortKey: incidents.cohortKey }).from(incidents).where(eq(incidents.status, "OPEN")),
+  ]);
+  const attemptsByJourney = new Map<string, typeof attemptRows>();
+  for (const attempt of attemptRows) attemptsByJourney.set(attempt.journeyId, [...(attemptsByJourney.get(attempt.journeyId) ?? []), attempt]);
+  const decisionsByJourney = new Map<string, typeof decisionRows>();
+  for (const decision of decisionRows) decisionsByJourney.set(decision.journeyId, [...(decisionsByJourney.get(decision.journeyId) ?? []), decision]);
   const estimates: JourneyRecoveryEstimate[] = [];
   for (const journey of eligible) {
-    const context = { amount: journey.outstandingAmount, attemptNumber: 1, minutesSinceFailure: 31, hourOfDay: new Date().getUTCHours(), method: journey.paymentMethod ?? "OTHER", provider: journey.provider ?? "OTHER", errorCode: "PAYMENT_FAILED", device: journey.deviceCategory ?? "OTHER", activeIncident: true, downtimeSeverity: 0 as const };
-    const safeActions = recoveryActions.filter((action) => isMoneyMovingRecoveryAction(action) && evaluateRecoveryAction({ journeyState: "RETRY_ELIGIBLE", outstandingAmount: journey.outstandingAmount, automatedRecoveryActions: 0, maxAutomatedRecoveryActions: env.MAX_AUTOMATED_RECOVERY_ACTIONS, hardDeclineDetected: false, hasConflictingFinancialState: false, lateAuthorizationGracePeriodActive: false }, action).allowed);
+    const journeyAttempts = attemptsByJourney.get(journey.id) ?? [];
+    const latestAttempt = [...journeyAttempts].sort((left, right) => right.receivedAt.getTime() - left.receivedAt.getTime())[0];
+    const journeyDecisions = decisionsByJourney.get(journey.id) ?? [];
+    const minutesSinceFailure = latestAttempt ? Math.max(0, Math.floor((Date.now() - latestAttempt.receivedAt.getTime()) / 60_000)) : 0;
+    const signalCount = activeSignals.filter((signal) => (!signal.provider || signal.provider === (latestAttempt?.provider ?? journey.provider)) && (!signal.method || signal.method === (latestAttempt?.method ?? journey.paymentMethod))).length;
+    const activeIncident = openIncidents.some((incident) => incident.cohortKey.includes(latestAttempt?.provider ?? journey.provider ?? "") || incident.cohortKey.includes(latestAttempt?.method ?? journey.paymentMethod ?? ""));
+    const context = { amount: journey.outstandingAmount, attemptNumber: journeyAttempts.length, minutesSinceFailure, hourOfDay: latestAttempt?.receivedAt.getUTCHours() ?? journey.updatedAt.getUTCHours(), method: latestAttempt?.method ?? journey.paymentMethod ?? "OTHER", provider: latestAttempt?.provider ?? journey.provider ?? "OTHER", errorCode: latestAttempt?.errorCode ?? "PAYMENT_FAILED", device: latestAttempt?.deviceCategory ?? journey.deviceCategory ?? "OTHER", activeIncident, downtimeSeverity: Math.min(2, signalCount) as 0 | 1 | 2 };
+    const safeActions = recoveryActions.filter((action) => isMoneyMovingRecoveryAction(action) && evaluateRecoveryAction({ journeyState: "RETRY_ELIGIBLE", outstandingAmount: journey.outstandingAmount, automatedRecoveryActions: journeyDecisions.filter((decision) => isMoneyMovingRecoveryAction(decision.action as Parameters<typeof isMoneyMovingRecoveryAction>[0])).length, maxAutomatedRecoveryActions: env.MAX_AUTOMATED_RECOVERY_ACTIONS, hardDeclineDetected: journeyAttempts.some((attempt) => attempt.errorCode === "HARD_DECLINE"), hasConflictingFinancialState: journeyAttempts.some((attempt) => attempt.status === "captured" || attempt.status === "authorized"), lateAuthorizationGracePeriodActive: latestAttempt?.status === "authorized" }, action).allowed);
     const selection = safeActions.length ? await selectLiveRecoveryAction(database, context, safeActions, journey.outstandingAmount) : null;
-    estimates.push({ journeyId: journey.id, outstandingAmount: journey.outstandingAmount, baselineRecoveryProbability: env.RISK_NO_INTERVENTION_PROBABILITY, selectedRecoveryProbability: selection?.ranking.predictedSuccess ?? env.RISK_NO_INTERVENTION_PROBABILITY, interventionCost: selection ? env.RISK_INTERVENTION_COST_PAISE : 0, policySamples: interactions.length });
+    const selectedAction = selection?.ranking.action;
+    estimates.push({ journeyId: journey.id, outstandingAmount: journey.outstandingAmount, baselineRecoveryProbability: env.RISK_NO_INTERVENTION_PROBABILITY, selectedRecoveryProbability: selection?.ranking.predictedSuccess ?? env.RISK_NO_INTERVENTION_PROBABILITY, interventionCost: selectedAction ? env.RISK_INTERVENTION_COST_PAISE : 0, policySamples: selectedAction ? interactionRows.filter((interaction) => interaction.action === selectedAction).length : 0 });
   }
   return estimateRevenueAtRisk(estimates, { baselineRecoveryProbability: env.RISK_NO_INTERVENTION_PROBABILITY, interventionCostPaise: env.RISK_INTERVENTION_COST_PAISE });
 }

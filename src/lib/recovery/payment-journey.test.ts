@@ -52,6 +52,7 @@ describe("payment journey transitions", () => {
 
   it("marks the intended terminal states", () => {
     expect(isTerminalPaymentJourneyState("CAPTURED")).toBe(true);
+    expect(isTerminalPaymentJourneyState("MANUAL_REVIEW")).toBe(true);
     expect(isTerminalPaymentJourneyState("FAILED_PENDING_VERIFICATION")).toBe(false);
   });
 });

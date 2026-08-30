@@ -34,6 +34,7 @@ const terminalStates = new Set<PaymentJourneyState>([
   "CAPTURED",
   "EXPIRED",
   "CANCELLED",
+  "MANUAL_REVIEW",
 ]);
 
 const transitions: Record<PaymentJourneyState, Partial<Record<PaymentEventType, PaymentJourneyState>>> = {
@@ -81,11 +82,7 @@ const transitions: Record<PaymentJourneyState, Partial<Record<PaymentEventType, 
   },
   EXPIRED: {},
   CANCELLED: {},
-  MANUAL_REVIEW: {
-    PAYMENT_CAPTURED: "CAPTURED",
-    VERIFICATION_EXPIRED: "RETRY_ELIGIBLE",
-    CANCELLED: "CANCELLED",
-  },
+  MANUAL_REVIEW: {},
 };
 
 export function transitionPaymentJourney(
