@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
-export const paymentEntitySchema = z.object({ id: z.string().min(1).optional(), order_id: z.string().min(1).optional(), amount: z.number().int().positive().optional(), currency: z.string().min(1).optional(), payment_link_id: z.string().min(1).optional(), method: z.string().min(1).optional(), bank: z.string().min(1).optional(), status: z.string().min(1).optional(), error_code: z.string().min(1).optional(), error_source: z.string().min(1).optional(), error_step: z.string().min(1).optional(), error_reason: z.string().min(1).optional(), created_at: z.number().int().positive().optional(), notes: z.record(z.string(), z.unknown()).optional() });
+// Razorpay sends these as null for successful payments, and its `notes` field
+// may be either an object or an empty array depending on the payment flow.
+export const paymentEntitySchema = z.object({ id: z.string().min(1).optional(), order_id: z.string().min(1).optional(), amount: z.number().int().positive().optional(), currency: z.string().min(1).optional(), payment_link_id: z.string().min(1).optional(), method: z.string().min(1).optional(), bank: z.string().min(1).optional(), status: z.string().min(1).optional(), error_code: z.string().min(1).nullable().optional(), error_source: z.string().min(1).nullable().optional(), error_step: z.string().min(1).nullable().optional(), error_reason: z.string().min(1).nullable().optional(), created_at: z.number().int().positive().optional(), notes: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional() });
 const payloadSchema = z.object({ event: z.string().min(1), payload: z.object({ payment: z.object({ entity: paymentEntitySchema }).optional() }).passthrough() });
 export type VerifiedWebhook = { eventId: string; eventType: string; payload: z.infer<typeof payloadSchema> };
 

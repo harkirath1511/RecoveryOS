@@ -11,6 +11,7 @@ import { restoreBanditState, serializeBanditState } from "@/lib/recovery/bandit-
 import { updateLinUcb } from "@/lib/recovery/linucb";
 import { encodeRecoveryContext, type RecoveryPolicyContext } from "@/lib/recovery/policy-context";
 import { recoveryActions, type RecoveryAction } from "@/lib/recovery/safety-policy";
+import { executeAutonomousRecovery } from "@/app/api/recovery-links/route";
 
 const jobSchema = z.object({ journeyId: z.string().uuid(), workflowId: z.string().uuid(), idempotencyKey: z.string().min(1), expectedState: z.literal("FAILED_PENDING_VERIFICATION") });
 
@@ -42,7 +43,10 @@ export async function POST(request: Request) {
       if (outcome) await tx.insert(auditEntries).values({ journeyId: journey.id, decisionId: workflow.decisionId, outcomeId: outcome.id, entityType: "OUTCOME", entityId: outcome.id, action: "ATTRIBUTE", eventType: captured ? "NATURAL_LATE_CAPTURE" : providerEvent === "VERIFICATION_EXPIRED" ? "NOT_RECOVERED" : "PAYMENT_AUTHORIZED", reason: "Provider verification produced a persisted outcome.", evidence: { workflowId: workflow.id, providerStatus: payment.status } });
       if (outcome && !captured && decision?.policy === "LINUCB" && decision.policyVersion && isAction(decision.action) && isContext(decision.policyContext)) { const [stored] = await tx.select().from(banditStates).where(eq(banditStates.version, decision.policyVersion)).limit(1); if (stored) { const state = updateLinUcb(restoreBanditState(JSON.stringify(stored.state)), decision.action, encodeRecoveryContext(decision.policyContext), false); await tx.update(banditStates).set({ state: JSON.parse(serializeBanditState(state)), updatedAt: new Date() }).where(eq(banditStates.version, decision.policyVersion)); } }
     });
-    return NextResponse.json({ processed: transition.accepted, state: transition.state, providerStatus: payment.status });
+    const autonomousRecovery = transition.state === "RETRY_ELIGIBLE"
+      ? await executeAutonomousRecovery({ journeyId: journey.id, triggerSource: "AUTONOMOUS_INDIVIDUAL" })
+      : undefined;
+    return NextResponse.json({ processed: transition.accepted, state: transition.state, providerStatus: payment.status, autonomousRecovery });
   } catch (error) { return NextResponse.json({ processed: false, error: error instanceof Error ? error.message : "Invalid job" }, { status: 400 }); }
 }
 function isAction(value: string): value is RecoveryAction { return recoveryActions.includes(value as RecoveryAction); }

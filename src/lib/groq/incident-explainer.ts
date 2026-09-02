@@ -17,10 +17,10 @@ export function buildIncidentExplanationPrompt(input: IncidentExplanationInput):
 export class GroqIncidentExplanationProvider implements IncidentExplanationProvider {
   constructor(private readonly apiKey: string, private readonly model = env.GROQ_MODEL) {}
   async explain(input: IncidentExplanationInput): Promise<IncidentExplanation> {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${this.apiKey}`, "content-type": "application/json" }, body: JSON.stringify({ model: this.model, temperature: 0, response_format: { type: "json_object" }, messages: [{ role: "user", content: buildIncidentExplanationPrompt(input) }] }) });
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${this.apiKey}`, "content-type": "application/json" }, body: JSON.stringify({ model: this.model, temperature: 0, messages: [{ role: "user", content: buildIncidentExplanationPrompt(input) }] }) });
     if (!response.ok) throw new Error("Groq explanation request failed.");
     const body = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const parsed = incidentExplanationSchema.parse(JSON.parse(body.choices?.[0]?.message?.content ?? ""));
+    const parsed = incidentExplanationSchema.parse(parseJsonObject(body.choices?.[0]?.message?.content ?? ""));
     const allowedIds = new Set(input.citations.map((citation) => citation.id));
     if (parsed.citations.some((citation) => !allowedIds.has(citation.id))) throw new Error("Groq cited evidence that was not supplied.");
     return parsed;
@@ -35,3 +35,5 @@ export async function explainIncident(input: IncidentExplanationInput, provider?
 }
 
 export function deterministicIncidentExplanation(input: IncidentExplanationInput): IncidentExplanation { const { incident } = input; return { summary: `Success rate declined from ${(incident.overallBaseline.successRate * 100).toFixed(1)}% to ${(incident.overallCurrent.successRate * 100).toFixed(1)}% in the current window. The highest-contributing cohort is ${incident.topSegment.label}.`, findings: [`The cohort contributes ${incident.topSegment.excessFailures} estimated excess failures.`, `The observed success-rate drop is ${(incident.topSegment.successRateDrop * 100).toFixed(1)} percentage points with a ${incident.topSegment.zScore.toFixed(1)}σ signal.`], recommendedNextStep: "Inspect the cited safety decision and audit evidence before executing any recovery action.", citations: input.citations }; }
+
+function parseJsonObject(content: string): unknown { const trimmed = content.trim().replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, ""); return JSON.parse(trimmed); }
