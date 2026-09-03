@@ -8,7 +8,21 @@ declare global { interface Window { Razorpay?: new (options: Record<string, unkn
 export function RecoveryLinkConsole() {
   const [status, setStatus] = useState<string>("");
   const [journey, setJourney] = useState<Journey | null>(null);
-  useEffect(() => { fetch("/api/journeys").then(r => r.json()).then(data => setJourney((data.journeys ?? []).find((item: Journey) => item.state === "RETRY_ELIGIBLE") ?? null)).catch(() => setStatus("Unable to load eligible recovery journeys.")); }, []);
+  useEffect(() => {
+    let active = true;
+    const loadEligibleJourney = async () => {
+      try {
+        const response = await fetch("/api/journeys", { cache: "no-store" });
+        const data = await response.json();
+        if (active) setJourney((data.journeys ?? []).find((item: Journey) => item.state === "RETRY_ELIGIBLE") ?? null);
+      } catch {
+        if (active) setStatus("Unable to load eligible recovery journeys.");
+      }
+    };
+    void loadEligibleJourney();
+    const interval = window.setInterval(loadEligibleJourney, 5_000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, []);
   async function createLink() {
     if (!journey) { setStatus("No retry-eligible journey exists. RecoveryOS will only create a link after verification has elapsed."); return; }
     setStatus("Creating a safety-checked Test Mode link…");

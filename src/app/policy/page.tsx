@@ -1,0 +1,2 @@
+import { OperatorShell } from "@/components/operator-shell"; import { PolicyConsole } from "@/components/policy-console"; import { requireOperatorPage } from "@/lib/auth/operator-page";
+export default async function Page(){await requireOperatorPage();return <OperatorShell title="Recovery policy" eyebrow="Policy"><section className="panel"><p className="source-note">Policy ranking is contextual and persisted. Safety rules remain deterministic and cannot be overridden here.</p><PolicyConsole /></section></OperatorShell>}

@@ -16,6 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@upstash/qstash": "^2.11.3",
     "drizzle-orm": "^0.45.2",
     "next": "^16.0.0",
@@ -23,12 +24,14 @@
     "razorpay": "^2.9.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "ws": "^8.21.3",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.0.0",

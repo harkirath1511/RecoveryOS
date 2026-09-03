@@ -192,7 +192,7 @@ If a check cannot run, record why in the handoff or commit body. Do not silently
 
 Never commit:
 
-- `.env`, `.env.local`, or exported hosting environment files.
+- `.env` or exported hosting environment files.
 - Razorpay key secrets or webhook secrets.
 - Gemini API keys.
 - Neon connection strings or database passwords.

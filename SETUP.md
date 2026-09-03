@@ -823,22 +823,26 @@ QSTASH_TOKEN=
 QSTASH_CURRENT_SIGNING_KEY=
 QSTASH_NEXT_SIGNING_KEY=
 
-# Gemini
-GEMINI_API_KEY=
-GEMINI_MODEL=
+# Groq (read-only operator assistant)
+GROQ_API_KEY=
+GROQ_MODEL=openai/gpt-oss-20b
 
 # Recovery policy
-RECOVERY_GRACE_SECONDS=
+DATABASE_CONNECT_TIMEOUT_SECONDS=15
+RECOVERY_GRACE_PERIOD_SECONDS=
 MAX_AUTOMATED_RECOVERY_ACTIONS=2
 RECOVERY_TOKEN_TTL_SECONDS=
 LINUCB_ALPHA=
+RISK_NO_INTERVENTION_PROBABILITY=
+RISK_INTERVENTION_COST_PAISE=
+AUTONOMOUS_RECOVERY_ENABLED=false
 
 # Simulator
 SIMULATOR_DEFAULT_SEED=
 SIMULATOR_DEFAULT_VOLUME=500
 ```
 
-Secrets are configured in `.env.local` for local development and in the corresponding hosting dashboards for deployment.
+Secrets are configured in `.env` for local development and in the corresponding hosting dashboards for deployment.
 
 ---
 

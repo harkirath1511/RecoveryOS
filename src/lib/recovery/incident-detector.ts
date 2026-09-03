@@ -1,5 +1,3 @@
-import type { SimulatedPaymentAttempt } from "./simulator";
-
 /** The detector deliberately only needs normalized payment facts, not simulator data. */
 export type DetectablePaymentAttempt = {
   id: string;

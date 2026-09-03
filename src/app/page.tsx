@@ -1,10 +1,8 @@
-import { RecoveryDashboard } from "@/components/recovery-dashboard";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
+import { OperatorShell } from "@/components/operator-shell";
+import { OverviewScreen } from "@/components/overview-screen";
+import { requireOperatorPage } from "@/lib/auth/operator-page";
 
 export default async function HomePage() {
-  const token=(await cookies()).get(sessionCookieName)?.value;
-  if(!verifySessionToken(token)) redirect("/login");
-  return <RecoveryDashboard />;
+  await requireOperatorPage();
+  return <OperatorShell title="Command center" eyebrow="Overview"><OverviewScreen /></OperatorShell>;
 }

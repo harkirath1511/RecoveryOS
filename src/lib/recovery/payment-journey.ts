@@ -34,11 +34,15 @@ const terminalStates = new Set<PaymentJourneyState>([
   "CAPTURED",
   "EXPIRED",
   "CANCELLED",
+  "MANUAL_REVIEW",
 ]);
 
 const transitions: Record<PaymentJourneyState, Partial<Record<PaymentEventType, PaymentJourneyState>>> = {
   CREATED: {
     ATTEMPT_STARTED: "ATTEMPTED",
+    // Webhooks can arrive without a separate attempt-start event, especially for
+    // hosted payment links. A verified failure is still safe to verify before recovery.
+    PAYMENT_FAILED: "FAILED_PENDING_VERIFICATION",
     PAYMENT_AUTHORIZED: "AUTHORIZED",
     PAYMENT_CAPTURED: "CAPTURED",
     CANCELLED: "CANCELLED",
@@ -78,11 +82,7 @@ const transitions: Record<PaymentJourneyState, Partial<Record<PaymentEventType, 
   },
   EXPIRED: {},
   CANCELLED: {},
-  MANUAL_REVIEW: {
-    PAYMENT_CAPTURED: "CAPTURED",
-    VERIFICATION_EXPIRED: "RETRY_ELIGIBLE",
-    CANCELLED: "CANCELLED",
-  },
+  MANUAL_REVIEW: {},
 };
 
 export function transitionPaymentJourney(

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createDatabase } from "@/db/client";
 import { auditEntries, paymentJourneys, recoveryDecisions, recoveryOutcomes, recoveryTokens, recoveryWorkflows, webhookEvents } from "@/db/schema";
 import { requireOperator } from "@/lib/auth/session";
+import { env } from "@/lib/env";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 type RazorpayPayload = { payload?: { payment?: { entity?: { order_id?: string; payment_link_id?: string; amount?: number } } } };
@@ -18,10 +19,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     if (!journey) return NextResponse.json({ error: "Journey not found." }, { status: 404 });
     const [tokens, workflows, decisions, outcomes, audits, rawEvents] = await Promise.all([
       database.select({ paymentLinkId: recoveryTokens.paymentLinkId }).from(recoveryTokens).where(eq(recoveryTokens.journeyId, id)),
-      database.select({ id: recoveryWorkflows.id, action: recoveryWorkflows.action, status: recoveryWorkflows.status, scheduledAt: recoveryWorkflows.scheduledAt, executedAt: recoveryWorkflows.executedAt, terminalReason: recoveryWorkflows.terminalReason }).from(recoveryWorkflows).where(eq(recoveryWorkflows.journeyId, id)).orderBy(desc(recoveryWorkflows.createdAt)),
-      database.select({ id: recoveryDecisions.id, action: recoveryDecisions.action, policy: recoveryDecisions.policy, expectedRecoveryAmount: recoveryDecisions.expectedRecoveryAmount, safety: recoveryDecisions.safety, createdAt: recoveryDecisions.createdAt }).from(recoveryDecisions).where(eq(recoveryDecisions.journeyId, id)).orderBy(desc(recoveryDecisions.createdAt)),
+      database.select({ id: recoveryWorkflows.id, action: recoveryWorkflows.action, status: recoveryWorkflows.status, scheduledAt: recoveryWorkflows.scheduledAt, executedAt: recoveryWorkflows.executedAt, terminalReason: recoveryWorkflows.terminalReason, qstashMessageId:recoveryWorkflows.qstashMessageId,idempotencyKey:recoveryWorkflows.idempotencyKey,externalResourceId:recoveryWorkflows.externalResourceId,attemptCount:recoveryWorkflows.attemptCount,cancelledAt:recoveryWorkflows.cancelledAt }).from(recoveryWorkflows).where(eq(recoveryWorkflows.journeyId, id)).orderBy(desc(recoveryWorkflows.createdAt)),
+      database.select({ id: recoveryDecisions.id, action: recoveryDecisions.action, policy: recoveryDecisions.policy, triggerSource: recoveryDecisions.triggerSource, expectedRecoveryAmount: recoveryDecisions.expectedRecoveryAmount, predictedSuccess:recoveryDecisions.predictedSuccess, safety: recoveryDecisions.safety, safetyContext:recoveryDecisions.safetyContext, candidateActions:recoveryDecisions.candidateActions,policyEstimates:recoveryDecisions.policyEstimates,decisionReason:recoveryDecisions.decisionReason,policyVersion:recoveryDecisions.policyVersion,createdAt: recoveryDecisions.createdAt }).from(recoveryDecisions).where(eq(recoveryDecisions.journeyId, id)).orderBy(desc(recoveryDecisions.createdAt)),
       database.select().from(recoveryOutcomes).where(eq(recoveryOutcomes.journeyId, id)).limit(1),
-      database.select({ eventType: auditEntries.eventType, createdAt: auditEntries.createdAt, evidence: auditEntries.evidence }).from(auditEntries).where(eq(auditEntries.entityId, id)).orderBy(desc(auditEntries.createdAt)).limit(50),
+      database.select({ eventType: auditEntries.eventType, reason:auditEntries.reason, previousState:auditEntries.previousState,nextState:auditEntries.nextState, createdAt: auditEntries.createdAt, evidence: auditEntries.evidence }).from(auditEntries).where(eq(auditEntries.journeyId, id)).orderBy(desc(auditEntries.createdAt)).limit(100),
       database.select({ id: webhookEvents.razorpayEventId, type: webhookEvents.eventType, receivedAt: webhookEvents.receivedAt, payload: webhookEvents.payload }).from(webhookEvents).orderBy(desc(webhookEvents.receivedAt)).limit(100),
     ]);
     const paymentLinkIds = new Set(tokens.map(token => token.paymentLinkId).filter(Boolean));
@@ -30,7 +31,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       if (!entity || (entity.order_id !== journey.razorpayOrderId && !paymentLinkIds.has(entity.payment_link_id ?? null))) return [];
       return [{ id: event.id, type: event.type, receivedAt: event.receivedAt, amount: entity.amount ?? null, orderId: entity.order_id ?? null }];
     });
-    return NextResponse.json({ journey, events, workflows, decisions, outcome: outcomes[0] ?? null, audits });
+    return NextResponse.json({ journey, events, workflows, decisions, outcome: outcomes[0] ?? null, audits, autonomousRecoveryEnabled: env.AUTONOMOUS_RECOVERY_ENABLED === "true" });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load journey detail." }, { status: 400 });
   }
