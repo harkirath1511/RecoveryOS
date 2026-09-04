@@ -1,7 +1,14 @@
 import { z } from "zod";
 
+function unquoteEnvironmentValue(value: string | undefined) {
+  if (!value || value.length < 2) return value;
+  const first = value[0]; const last = value.at(-1);
+  return (first === "'" || first === '"') && first === last ? value.slice(1, -1) : value;
+}
+
 const schema = z.object({
   DATABASE_URL: z.string().url().optional(),
+  APP_BASE_URL: z.string().url().optional(),
   DATABASE_CONNECT_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(30).default(15),
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
@@ -22,22 +29,23 @@ const schema = z.object({
 });
 
 export const env = schema.parse({
-  DATABASE_URL: process.env.DATABASE_URL,
-  DATABASE_CONNECT_TIMEOUT_SECONDS: process.env.DATABASE_CONNECT_TIMEOUT_SECONDS,
-  RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
-  RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
-  RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
-  QSTASH_TOKEN: process.env.QSTASH_TOKEN,
-  QSTASH_URL: process.env.QSTASH_URL,
-  QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY,
-  QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
-  RECOVERY_GRACE_PERIOD_SECONDS: process.env.RECOVERY_GRACE_PERIOD_SECONDS,
-  MAX_AUTOMATED_RECOVERY_ACTIONS: process.env.MAX_AUTOMATED_RECOVERY_ACTIONS,
-  RECOVERY_TOKEN_TTL_SECONDS: process.env.RECOVERY_TOKEN_TTL_SECONDS,
-  LINUCB_ALPHA: process.env.LINUCB_ALPHA,
-  AUTONOMOUS_RECOVERY_ENABLED: process.env.AUTONOMOUS_RECOVERY_ENABLED,
-  RISK_NO_INTERVENTION_PROBABILITY: process.env.RISK_NO_INTERVENTION_PROBABILITY,
-  RISK_INTERVENTION_COST_PAISE: process.env.RISK_INTERVENTION_COST_PAISE,
-  GROQ_API_KEY: process.env.GROQ_API_KEY,
-  GROQ_MODEL: process.env.GROQ_MODEL,
+  DATABASE_URL: unquoteEnvironmentValue(process.env.DATABASE_URL),
+  APP_BASE_URL: unquoteEnvironmentValue(process.env.APP_BASE_URL),
+  DATABASE_CONNECT_TIMEOUT_SECONDS: unquoteEnvironmentValue(process.env.DATABASE_CONNECT_TIMEOUT_SECONDS),
+  RAZORPAY_KEY_ID: unquoteEnvironmentValue(process.env.RAZORPAY_KEY_ID),
+  RAZORPAY_KEY_SECRET: unquoteEnvironmentValue(process.env.RAZORPAY_KEY_SECRET),
+  RAZORPAY_WEBHOOK_SECRET: unquoteEnvironmentValue(process.env.RAZORPAY_WEBHOOK_SECRET),
+  QSTASH_TOKEN: unquoteEnvironmentValue(process.env.QSTASH_TOKEN),
+  QSTASH_URL: unquoteEnvironmentValue(process.env.QSTASH_URL),
+  QSTASH_CURRENT_SIGNING_KEY: unquoteEnvironmentValue(process.env.QSTASH_CURRENT_SIGNING_KEY),
+  QSTASH_NEXT_SIGNING_KEY: unquoteEnvironmentValue(process.env.QSTASH_NEXT_SIGNING_KEY),
+  RECOVERY_GRACE_PERIOD_SECONDS: unquoteEnvironmentValue(process.env.RECOVERY_GRACE_PERIOD_SECONDS),
+  MAX_AUTOMATED_RECOVERY_ACTIONS: unquoteEnvironmentValue(process.env.MAX_AUTOMATED_RECOVERY_ACTIONS),
+  RECOVERY_TOKEN_TTL_SECONDS: unquoteEnvironmentValue(process.env.RECOVERY_TOKEN_TTL_SECONDS),
+  LINUCB_ALPHA: unquoteEnvironmentValue(process.env.LINUCB_ALPHA),
+  AUTONOMOUS_RECOVERY_ENABLED: unquoteEnvironmentValue(process.env.AUTONOMOUS_RECOVERY_ENABLED),
+  RISK_NO_INTERVENTION_PROBABILITY: unquoteEnvironmentValue(process.env.RISK_NO_INTERVENTION_PROBABILITY),
+  RISK_INTERVENTION_COST_PAISE: unquoteEnvironmentValue(process.env.RISK_INTERVENTION_COST_PAISE),
+  GROQ_API_KEY: unquoteEnvironmentValue(process.env.GROQ_API_KEY),
+  GROQ_MODEL: unquoteEnvironmentValue(process.env.GROQ_MODEL),
 });
