@@ -2,22 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Icon, type IconName, StatusBadge } from "./ui-primitives";
+import { BrandLogo } from "./brand-logo";
+import { SlushNavbar } from "./slush-navbar";
+
 
 const navigation = [
-  ["Overview", "/"], ["Incidents", "/incidents"], ["Journeys", "/journeys"],
-  ["Recovery operations", "/operations"], ["Manual review", "/manual-review"],
-  ["Recovery policy", "/policy"], ["Recovery lab", "/lab"], ["Evidence assistant", "/assistant"], ["Evidence & audit", "/audit"],
+  ["Command center", "/command-center", "command"],
+  ["Payments", "/payments", "payments"],
+  ["Recovery", "/recovery", "recovery"],
+  ["Evidence", "/evidence", "evidence"],
+  ["AI assistant", "/assistant", "activity"],
+  ["Lab", "/lab", "flask"],
 ] as const;
 
 export function OperatorShell({ title, eyebrow, children }: { title: string; eyebrow: string; children: ReactNode }) {
   const pathname = usePathname();
-  return <div className="operator-app">
-    <aside className="operator-nav"><Link className="brand" href="/"><span>RecoveryOS</span><small>operator console</small></Link>
-      <nav aria-label="Operator navigation">{navigation.map(([label, href]) => <Link key={href} href={href} className={pathname === href || (href !== "/" && pathname.startsWith(href)) ? "active" : ""}>{label}</Link>)}</nav>
-      <p>Test Mode payment evidence and synthetic evidence are deliberately kept separate.</p>
-    </aside>
-    <main className="operator-main"><header className="page-header"><div><p className="eyebrow">RecoveryOS / {eyebrow}</p><h1>{title}</h1></div><form action="/api/auth/logout" method="post"><button className="text-button">Sign out</button></form></header>
-      <p className="breadcrumbs"><Link href="/">Overview</Link> <span>/</span> {eyebrow}</p>{children}</main>
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => { const shortcut = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileOpen(false); }; window.addEventListener("keydown", shortcut); return () => window.removeEventListener("keydown", shortcut); }, []);
+  const links = navigation.map(([label, href, icon]) => { const active = href === "/payments" ? pathname === "/payments" || pathname.startsWith("/journeys") : pathname === href || pathname.startsWith(`${href}/`); return <Link key={href} href={href} className={active ? "active" : ""} aria-current={active ? "page" : undefined}><Icon name={icon as IconName} /><span>{label}</span></Link>; });
+  const commandCenter = pathname.startsWith("/command-center");
+  return <div className="operator-app slush-workspace">
+    <SlushNavbar workspace />
+    {mobileOpen && <nav className="mobile-top-nav" aria-label="Mobile navigation"><p>WHERE TO?</p>{links}<Link className="mobile-recovery-cta" href="/recovery">START RECOVERING <Icon name="arrow" /></Link></nav>}
+    <main className={`operator-main${commandCenter ? " command-center-main" : ""}`}><header className="page-header"><div className="page-title"><p className="eyebrow">{eyebrow}</p><h1>{title}</h1></div><p className="page-context-note"><Icon name={pathname.startsWith("/lab") ? "flask" : "shield"} />{pathname.startsWith("/lab") ? "Synthetic evidence only" : "Evidence-backed operations"}</p></header><div className="page-content">{children}</div><footer className="workspace-footer"><strong>RecoveryOS</strong><span>Good things come full circle.</span><span className="spline-footer-credit">R4X Bot by Vlad Kolokolnikov · CC BY 4.0</span><Link href="/evidence">Every action. On record. ↗</Link></footer></main>
   </div>;
 }

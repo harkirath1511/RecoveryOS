@@ -9,6 +9,7 @@ export function createRazorpayClient(): Razorpay {
 
 export async function createExactAmountTestLink(input: { amount: number; referenceId: string; description: string; customer: { name?: string; email?: string; contact?: string } }) {
   if (!Number.isSafeInteger(input.amount) || input.amount <= 0) throw new Error("Recovery amount must be a positive integer in paise.");
+  if (!env.RAZORPAY_KEY_ID?.startsWith("rzp_test_")) throw new Error("Recovery links are restricted to Razorpay Test Mode credentials.");
   const client = createRazorpayClient();
   return client.paymentLink.create({ amount: input.amount, currency: "INR", reference_id: input.referenceId, description: input.description, accept_partial: false, customer: input.customer, notify: { email: false, sms: false, whatsapp: false } });
 }

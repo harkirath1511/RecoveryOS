@@ -1,2 +1,2 @@
 import { OperatorShell } from "@/components/operator-shell"; import { JourneyDetailScreen } from "@/components/journey-detail-screen"; import { requireOperatorPage } from "@/lib/auth/operator-page";
-export default async function Page({params}:{params:Promise<{id:string}>}){await requireOperatorPage();const {id}=await params;return <OperatorShell title="Journey evidence" eyebrow="Journeys / detail"><JourneyDetailScreen id={id}/></OperatorShell>}
+export default async function Page({params}:{params:Promise<{id:string}>}){await requireOperatorPage();const {id}=await params;return <OperatorShell title="Journey detail" eyebrow="Payments / journey detail"><JourneyDetailScreen id={id}/></OperatorShell>}

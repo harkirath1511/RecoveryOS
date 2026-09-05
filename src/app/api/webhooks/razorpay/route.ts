@@ -55,7 +55,16 @@ export async function POST(request: Request) {
     if ("cancelMessageIds" in result) await Promise.all((result.cancelMessageIds ?? []).map(messageId => cancelVerification(messageId).catch(() => false)));
     // Scenario replay completes pending verification with virtual time in its caller.
     // Do not enqueue one external QStash delivery per synthetic failed payment.
-    if (!isSyntheticScenario && "scheduled" in result && result.scheduled) { const job = result.scheduled; const destination = `${process.env.APP_BASE_URL ?? ""}/api/jobs/verify-payment`; const scheduled = await scheduleVerification({ journeyId: job.journeyId, workflowId: job.workflowId, idempotencyKey: job.idempotencyKey, expectedState: "FAILED_PENDING_VERIFICATION", runAt: job.runAt }, destination).catch((): { scheduled: false; messageId?: string } => ({ scheduled: false })); if (scheduled.scheduled) await database.update(recoveryWorkflows).set({ scheduledAt: new Date(), qstashMessageId: scheduled.messageId, updatedAt: new Date() }).where(eq(recoveryWorkflows.id, job.workflowId)); }
+    if (!isSyntheticScenario && "scheduled" in result && result.scheduled) {
+      const job = result.scheduled;
+      const destination = `${env.APP_BASE_URL ?? ""}/api/jobs/verify-payment`;
+      const scheduled = await scheduleVerification({ journeyId: job.journeyId, workflowId: job.workflowId, idempotencyKey: job.idempotencyKey, expectedState: "FAILED_PENDING_VERIFICATION", runAt: job.runAt }, destination).catch((error): { scheduled: false; reason: string } => ({ scheduled: false, reason: error instanceof Error ? error.message : "QStash scheduling failed." }));
+      if (scheduled.scheduled) {
+        await database.update(recoveryWorkflows).set({ scheduledAt: new Date(), qstashMessageId: scheduled.messageId, updatedAt: new Date() }).where(eq(recoveryWorkflows.id, job.workflowId));
+      } else {
+        await database.insert(auditEntries).values({ journeyId: job.journeyId, entityType: "WORKFLOW", entityId: job.workflowId, action: "SCHEDULE", eventType: "VERIFICATION_SCHEDULING_FAILED", reason: scheduled.reason ?? "The verification job was not scheduled.", evidence: { workflowId: job.workflowId, runAt: job.runAt.toISOString(), destinationConfigured: Boolean(env.APP_BASE_URL) } });
+      }
+    }
     return NextResponse.json({ accepted: true, event: webhook.eventType, ignored: "ignored" in result && result.ignored });
   } catch (error) { return NextResponse.json({ accepted: false, error: error instanceof Error ? error.message : "Webhook rejected" }, { status: 400 }); }
 }

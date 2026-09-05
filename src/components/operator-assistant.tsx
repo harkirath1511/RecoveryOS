@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "./ui-primitives";
 
 type Result = {
   provider: "GROQ" | "DETERMINISTIC_FALLBACK";
@@ -31,8 +32,8 @@ export function OperatorAssistant({ initialJourney = "" }: { initialJourney?: st
   }
 
   return <>
-    <section className="panel">
-      <div className="panel-heading"><div><p className="card-label">Groq operator assistant</p><h2>Ask about payment evidence</h2></div><span className="safe-pill">Read-only</span></div>
+    <section className="panel assistant-composer">
+      <div className="panel-heading"><div><p className="card-label">Groq operator assistant</p><h2>Ask about payment evidence</h2></div><div className="assistant-presence"><span><Icon name="activity" /></span><small>Evidence ready</small></div><span className="safe-pill">Read-only</span></div>
       <p className="panel-footnote">The assistant receives only the bounded stored evidence shown by the selected scope. It cannot create recovery links, alter payment state, or override safety policy.</p>
       <label className="assistant-label">Question<textarea value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={1000} disabled={asking} placeholder="Ask why a payment failed, what action was chosen, or what the active incident means." /></label>
       <div className="assistant-scope"><label>Journey UUID or order ID (optional)<input value={journey} onChange={(event) => setJourney(event.target.value)} disabled={asking} placeholder="scenario:… or journey UUID" /></label><label>Incident UUID (optional)<input value={incidentId} onChange={(event) => setIncidentId(event.target.value)} disabled={asking} placeholder="Incident UUID" /></label></div>

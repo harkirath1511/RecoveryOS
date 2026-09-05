@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createDatabase } from "@/db/client";
@@ -7,6 +7,7 @@ import { auditEntries, paymentJourneys, recoveryDecisions, recoveryOutcomes, rec
 import { requireOperator } from "@/lib/auth/session";
 import { cancelRazorpayPaymentLink, createExactAmountTestLink } from "@/lib/razorpay/client";
 import { evaluateRecoveryAction, isMoneyMovingRecoveryAction, recoveryActions } from "@/lib/recovery/safety-policy";
+import { selectExecutableRecoveryActions } from "@/lib/recovery/recovery-action-selection";
 import { selectLiveRecoveryAction } from "@/lib/recovery/live-policy";
 import { buildLiveRecoveryContext } from "@/lib/recovery/live-context";
 import { recoveryTokenDigest } from "@/lib/recovery/token-lifecycle";
@@ -17,6 +18,7 @@ const requestSchema = z.object({
   journeyId: z.string().uuid(),
   customer: z.object({ name: z.string().min(1).max(80).optional(), email: z.string().email().refine((value) => value.endsWith("@example.com"), "Only synthetic example.com email addresses are permitted.").optional(), contact: z.literal("+919876543210").optional() }).refine((customer) => Boolean(customer.email || customer.contact), "A synthetic test contact is required."),
   referenceId: z.string().min(1).max(40),
+  requestedAction: z.literal("CREATE_PAYMENT_LINK").optional(),
 });
 
 export async function POST(request: Request) {
@@ -29,6 +31,11 @@ export async function POST(request: Request) {
     const database = createDatabase();
     const [journey] = await database.select().from(paymentJourneys).where(eq(paymentJourneys.id, input.journeyId)).limit(1);
     if (!journey) return NextResponse.json({ created: false, error: "Payment journey not found." }, { status: 404 });
+    const [existingRecoveryLink] = await database.select({ id: recoveryWorkflows.id }).from(recoveryWorkflows).where(and(eq(recoveryWorkflows.journeyId, journey.id), eq(recoveryWorkflows.action, "CREATE_PAYMENT_LINK"))).limit(1);
+    if (existingRecoveryLink) {
+      await recordDuplicatePrevention(database, journey, "RECOVERY_LINK_ALREADY_CREATED", { workflowId: existingRecoveryLink.id });
+      return NextResponse.json({ created: false, error: "A recovery payment link already exists for this journey; duplicate collection is blocked.", ruleId: "RECOVERY_LINK_ALREADY_CREATED" }, { status: 409 });
+    }
     const priorDecisions = await database.select({ action: recoveryDecisions.action }).from(recoveryDecisions).where(eq(recoveryDecisions.journeyId, journey.id));
     const automatedRecoveryActions = priorDecisions.filter(decision => isMoneyMovingRecoveryAction(decision.action as (typeof recoveryActions)[number])).length;
     const failedEvents = await database.select({ payload: webhookEvents.payload, receivedAt: webhookEvents.receivedAt }).from(webhookEvents).where(eq(webhookEvents.eventType, "payment.failed")).orderBy(desc(webhookEvents.receivedAt)).limit(100);
@@ -40,20 +47,27 @@ export async function POST(request: Request) {
     // Razorpay Payment Links own the original checkout order. Reopening that order
     // after a failure can be rejected by Razorpay, so recovery must use a fresh,
     // exact-amount Payment Link instead of retrying the original checkout.
-    const allowedActions = (failureCameFromPaymentLink(failure?.payload)
+    const recoverableActions = (failureCameFromPaymentLink(failure?.payload)
       ? safeActions.filter(action => action === "CREATE_PAYMENT_LINK")
       : safeActions).filter(action => isMoneyMovingRecoveryAction(action));
+    const autonomousConcreteExecution = Boolean(triggerSource) && !synthetic;
+    const allowedActions = selectExecutableRecoveryActions({ safeActions: recoverableActions, requestedAction: input.requestedAction, autonomous: autonomousConcreteExecution });
     if (allowedActions.length === 0) {
       return NextResponse.json({ created: false, error: "No safety-permitted recovery action is available for this payment origin." }, { status: 409 });
     }
     const context = buildLiveRecoveryContext({ amount: journey.outstandingAmount, attemptNumber: automatedRecoveryActions + 1, failureReceivedAt: failure?.receivedAt, failurePayload: failure?.payload });
     const selection = await selectLiveRecoveryAction(database, context, allowedActions, journey.outstandingAmount);
     if (!selection) return NextResponse.json({ created: false, error: "The persisted LinUCB policy is not ready. Warm-start it before executing recovery." }, { status: 409 });
+    const decisionReason = autonomousConcreteExecution
+      ? "Autonomous execution is restricted to a concrete, exact-amount Test Mode payment link after provider verification and safety checks."
+      : input.requestedAction
+        ? "The operator requested an exact-amount Test Mode payment link, and deterministic safety checks permitted it."
+      : "Highest LinUCB score among safety-permitted actions.";
     const safety = evaluateRecoveryAction(safetyContext, selection.ranking.action);
     if (!safety.allowed) { await recordDuplicatePrevention(database, journey, safety.ruleId, { safetyContext, safety }); return NextResponse.json({ created: false, safety }, { status: 409 }); }
     if (synthetic) {
       const idempotencyKey = `synthetic-recovery:${journey.id}:${selection.ranking.action}:${automatedRecoveryActions + 1}`;
-      const workflow = await database.transaction(async tx => { await tx.execute(sql`select set_config('recovery.max_automated_actions', ${String(env.MAX_AUTOMATED_RECOVERY_ACTIONS)}, true)`); const [decision] = await tx.insert(recoveryDecisions).values({ journeyId: journey.id, action: selection.ranking.action, policy: "LINUCB", triggerSource: triggerSource!, policyVersion: selection.version, policyFeatureSchema: policyFeatureSchemaVersion, policyContext: selection.context, candidateActions: allowedActions, policyEstimates: selection.rankings, decisionReason: "Highest LinUCB score among safety-permitted actions.", predictedSuccess: String(selection.ranking.predictedSuccess), expectedRecoveryAmount: selection.ranking.expectedRecoveryAmount, safetyContext, safety: { selected: safety, results: safetyResults } }).returning({ id: recoveryDecisions.id }); const [created] = await tx.insert(recoveryWorkflows).values({ journeyId: journey.id, decisionId: decision!.id, action: selection.ranking.action, status: "EXECUTED", idempotencyKey, externalResourceId: `virtual:${journey.id}`, attemptCount: 1, executedAt: new Date() }).onConflictDoNothing().returning({ id: recoveryWorkflows.id }); if (!created) throw new Error("DUPLICATE_RECOVERY_WORKFLOW"); await tx.insert(auditEntries).values({ journeyId: journey.id, decisionId: decision!.id, entityType: "DECISION", entityId: decision!.id, action: selection.ranking.action, eventType: "SYNTHETIC_RECOVERY_WORKFLOW_CREATED", reason: "Synthetic replay used the same safety-permitted LinUCB recovery decision without creating a real payment instrument.", evidence: { triggerSource: triggerSource!, virtual: true, workflowId: created.id, selectedAction: selection.ranking.action, idempotencyKey } }); return created; });
+      const workflow = await database.transaction(async tx => { await tx.execute(sql`select set_config('recovery.max_automated_actions', ${String(env.MAX_AUTOMATED_RECOVERY_ACTIONS)}, true)`); const [decision] = await tx.insert(recoveryDecisions).values({ journeyId: journey.id, action: selection.ranking.action, policy: "LINUCB", triggerSource: triggerSource!, policyVersion: selection.version, policyFeatureSchema: policyFeatureSchemaVersion, policyContext: selection.context, candidateActions: allowedActions, policyEstimates: selection.rankings, decisionReason, predictedSuccess: String(selection.ranking.predictedSuccess), expectedRecoveryAmount: selection.ranking.expectedRecoveryAmount, safetyContext, safety: { selected: safety, results: safetyResults } }).returning({ id: recoveryDecisions.id }); const [created] = await tx.insert(recoveryWorkflows).values({ journeyId: journey.id, decisionId: decision!.id, action: selection.ranking.action, status: "EXECUTED", idempotencyKey, externalResourceId: `virtual:${journey.id}`, attemptCount: 1, executedAt: new Date() }).onConflictDoNothing().returning({ id: recoveryWorkflows.id }); if (!created) throw new Error("DUPLICATE_RECOVERY_WORKFLOW"); await tx.insert(auditEntries).values({ journeyId: journey.id, decisionId: decision!.id, entityType: "DECISION", entityId: decision!.id, action: selection.ranking.action, eventType: "SYNTHETIC_RECOVERY_WORKFLOW_CREATED", reason: "Synthetic replay used the same safety-permitted LinUCB recovery decision without creating a real payment instrument.", evidence: { triggerSource: triggerSource!, virtual: true, workflowId: created.id, selectedAction: selection.ranking.action, idempotencyKey } }); return created; });
       return NextResponse.json({ created: true, synthetic: true, action: selection.ranking.action, policy: "LINUCB", policyVersion: selection.version, workflowId: workflow!.id, safety });
     }
     if (selection.ranking.action === "RETRY_ORIGINAL_CHECKOUT" || selection.ranking.action === "OFFER_ALTERNATE_CHECKOUT") {
@@ -67,10 +81,28 @@ export async function POST(request: Request) {
     const link = await createExactAmountTestLink({ amount: journey.outstandingAmount, referenceId: input.referenceId, description: "RecoveryOS Test Mode recovery", customer: input.customer });
     const token = randomBytes(24).toString("base64url");
     const expiresAt = new Date(Date.now() + env.RECOVERY_TOKEN_TTL_SECONDS * 1000);
-    try { await database.transaction(async tx => { await tx.execute(sql`select set_config('recovery.max_automated_actions', ${String(env.MAX_AUTOMATED_RECOVERY_ACTIONS)}, true)`); const [decision] = await tx.insert(recoveryDecisions).values({ journeyId: journey.id, action: selection.ranking.action, policy: "LINUCB", triggerSource: triggerSource ?? "MANUAL_OPERATOR", policyVersion: selection.version, policyFeatureSchema: policyFeatureSchemaVersion, policyContext: selection.context, candidateActions: allowedActions, policyEstimates: selection.rankings, decisionReason: "Highest LinUCB score among safety-permitted actions.", predictedSuccess: String(selection.ranking.predictedSuccess), expectedRecoveryAmount: selection.ranking.expectedRecoveryAmount, safetyContext, safety: { selected: safety, results: safetyResults } }).returning({ id: recoveryDecisions.id }); const tokenDigest = recoveryTokenDigest(token); const [workflow] = await tx.insert(recoveryWorkflows).values({ journeyId: journey.id, decisionId: decision!.id, action: "CREATE_PAYMENT_LINK", status: "EXECUTED", idempotencyKey, customerTokenDigest: tokenDigest, externalResourceId: link.id, attemptCount: 1, executedAt: new Date(), expiresAt }).onConflictDoNothing().returning({ id: recoveryWorkflows.id }); if (!workflow) throw new Error("DUPLICATE_RECOVERY_WORKFLOW"); await tx.insert(auditEntries).values({ journeyId: journey.id, decisionId: decision!.id, entityType: "DECISION", entityId: decision!.id, action: "CREATE_PAYMENT_LINK", reason: "Safety-permitted LinUCB selection", eventType: "RECOVERY_LINK_CREATED", evidence: { triggerSource: triggerSource ?? "MANUAL_OPERATOR", safety, safetyResults, journeyId: journey.id, referenceId: input.referenceId, amount: journey.outstandingAmount, paymentLinkId: link.id, policyVersion: selection.version, policyContext: selection.context, selectedAction: selection.ranking.action, rankedActions: selection.rankings, workflowId: workflow.id, idempotencyKey } }); await tx.insert(recoveryTokens).values({ tokenDigest, journeyId: journey.id, decisionId: decision!.id, paymentLinkId: link.id, paymentLinkUrl: link.short_url, expiresAt }); }); } catch (error) { await cancelRazorpayPaymentLink(link.id).catch(() => undefined); if (error instanceof Error && (error.message.includes("AUTOMATED_ACTION_LIMIT") || error.message.includes("DUPLICATE_RECOVERY_WORKFLOW"))) await recordDuplicatePrevention(database, journey, "DUPLICATE_RECOVERY_WORKFLOW", { safetyContext, racePrevented: true, idempotencyKey }); throw error; }
-    const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
+    try { await database.transaction(async tx => { await tx.execute(sql`select set_config('recovery.max_automated_actions', ${String(env.MAX_AUTOMATED_RECOVERY_ACTIONS)}, true)`); const [decision] = await tx.insert(recoveryDecisions).values({ journeyId: journey.id, action: selection.ranking.action, policy: "LINUCB", triggerSource: triggerSource ?? "MANUAL_OPERATOR", policyVersion: selection.version, policyFeatureSchema: policyFeatureSchemaVersion, policyContext: selection.context, candidateActions: allowedActions, policyEstimates: selection.rankings, decisionReason, predictedSuccess: String(selection.ranking.predictedSuccess), expectedRecoveryAmount: selection.ranking.expectedRecoveryAmount, safetyContext, safety: { selected: safety, results: safetyResults } }).returning({ id: recoveryDecisions.id }); const tokenDigest = recoveryTokenDigest(token); const [workflow] = await tx.insert(recoveryWorkflows).values({ journeyId: journey.id, decisionId: decision!.id, action: "CREATE_PAYMENT_LINK", status: "EXECUTED", idempotencyKey, customerTokenDigest: tokenDigest, externalResourceId: link.id, attemptCount: 1, executedAt: new Date(), expiresAt }).onConflictDoNothing().returning({ id: recoveryWorkflows.id }); if (!workflow) throw new Error("DUPLICATE_RECOVERY_WORKFLOW"); await tx.insert(auditEntries).values({ journeyId: journey.id, decisionId: decision!.id, entityType: "DECISION", entityId: decision!.id, action: "CREATE_PAYMENT_LINK", reason: autonomousConcreteExecution ? "Autonomous provider verification and safety checks created an exact-amount Test Mode recovery link." : "Safety-permitted recovery link created after an operator request.", eventType: autonomousConcreteExecution ? "AUTONOMOUS_RECOVERY_LINK_CREATED" : "RECOVERY_LINK_CREATED", evidence: { triggerSource: triggerSource ?? "MANUAL_OPERATOR", safety, safetyResults, journeyId: journey.id, referenceId: input.referenceId, amount: journey.outstandingAmount, paymentLinkId: link.id, policyVersion: selection.version, policyContext: selection.context, selectedAction: selection.ranking.action, rankedActions: selection.rankings, workflowId: workflow.id, idempotencyKey } }); await tx.insert(recoveryTokens).values({ tokenDigest, journeyId: journey.id, decisionId: decision!.id, paymentLinkId: link.id, paymentLinkUrl: link.short_url, expiresAt }); }); } catch (error) { await cancelRazorpayPaymentLink(link.id).catch(() => undefined); if (error instanceof Error && (error.message.includes("AUTOMATED_ACTION_LIMIT") || error.message.includes("DUPLICATE_RECOVERY_WORKFLOW"))) await recordDuplicatePrevention(database, journey, "DUPLICATE_RECOVERY_WORKFLOW", { safetyContext, racePrevented: true, idempotencyKey }); throw error; }
+    const baseUrl = env.APP_BASE_URL ?? "http://localhost:3000";
     return NextResponse.json({ created: true, recoveryUrl: `${baseUrl}/recover/${token}`, id: link.id, expiresAt, safety, action: selection.ranking.action, policy: "LINUCB", policyVersion: selection.version, predictedSuccess: selection.ranking.predictedSuccess });
-  } catch (error) { return NextResponse.json({ created: false, error: error instanceof Error ? error.message : "Recovery link rejected" }, { status: 400 }); }
+  } catch (error) { return NextResponse.json({ created: false, error: recoveryLinkErrorMessage(error) }, { status: 400 }); }
+}
+
+function recoveryLinkErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (!error || typeof error !== "object") return "Recovery link rejected";
+  const candidates: unknown[] = [error];
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const record = candidate as Record<string, unknown>;
+    for (const key of ["error", "data", "body", "response"]) {
+      if (record[key] && typeof record[key] === "object") candidates.push(record[key]);
+    }
+    for (const key of ["description", "message", "reason", "detail", "code"]) {
+      const value = record[key];
+      if (typeof value === "string" && value.length > 0) return value.slice(0, 240);
+    }
+  }
+  return "Razorpay rejected the Test Mode recovery link without an actionable error message.";
 }
 
 function isFailureForOrder(payload: unknown, orderId: string | null): boolean {
@@ -94,7 +126,7 @@ export type RecoveryTriggerSource = "MANUAL_OPERATOR" | "AUTONOMOUS_INDIVIDUAL" 
 
 export async function executeAutonomousRecovery(input: { journeyId: string; triggerSource: Exclude<RecoveryTriggerSource, "MANUAL_OPERATOR">; synthetic?: boolean }) {
   if (env.AUTONOMOUS_RECOVERY_ENABLED !== "true") { const result = { created: false, skipped: true, reason: "AUTONOMOUS_RECOVERY_DISABLED" }; await recordAutonomousResult(input, result); return result; }
-  const body = JSON.stringify({ journeyId: input.journeyId, customer: { name: "RecoveryOS Autonomous Test", contact: "+919876543210" }, referenceId: `auto-${input.journeyId.slice(0, 8)}` });
+  const body = JSON.stringify({ journeyId: input.journeyId, customer: { name: "RecoveryOS Autonomous Test", contact: "+919876543210" }, referenceId: `auto-${input.journeyId.slice(0, 8)}`, requestedAction: "CREATE_PAYMENT_LINK" });
   const signature = internalSignature(body, input.triggerSource);
   const response = await POST(new Request("http://recoveryos.internal/api/recovery-links", { method: "POST", headers: { "content-type": "application/json", "x-recoveryos-trigger-source": input.triggerSource, "x-recoveryos-internal-signature": signature, ...(input.synthetic ? { "x-recoveryos-synthetic": "true" } : {}) }, body }));
   const result: Record<string, unknown> = { ...(await response.json() as Record<string, unknown>), status: response.status };
