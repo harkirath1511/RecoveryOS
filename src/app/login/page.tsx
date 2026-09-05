@@ -52,6 +52,7 @@ export default function LoginPage() {
         </div>
         <label htmlFor="operator-password">Operator password</label>
         <input id="operator-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" required />
+        <p className="login-demo-password"><strong>Demo password:</strong> admin@123</p>
         <button className="recovery-button" type="submit" disabled={submitting}>{submitting ? "Verifying…" : "Sign in securely"}</button>
         {error && <p className="form-error" id="login-error" role="alert"><Icon name="warning" width={15} height={15} /> {error}</p>}
         <p className="panel-footnote">Access is session-scoped. No payment action occurs on sign-in.</p>
