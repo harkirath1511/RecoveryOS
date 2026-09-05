@@ -1,9 +1,13 @@
 import { z } from "zod";
 
 function unquoteEnvironmentValue(value: string | undefined) {
-  if (!value || value.length < 2) return value;
-  const first = value[0]; const last = value.at(-1);
-  return (first === "'" || first === '"') && first === last ? value.slice(1, -1) : value;
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length < 2) return trimmed;
+  const first = trimmed[0]; const last = trimmed.at(-1);
+  const unquoted = (first === "'" || first === '"') && first === last ? trimmed.slice(1, -1) : trimmed;
+  return unquoted.trim() || undefined;
 }
 
 const schema = z.object({
