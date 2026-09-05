@@ -1,1 +1,5 @@
-export default function Loading() { return <main className="shell"><p className="eyebrow">RecoveryOS</p><h1>Loading operator evidence…</h1></main>; }
+import { LoadingState } from "@/components/loading-state";
+
+export default function Loading() {
+  return <main className="shell standalone-state"><LoadingState label="Loading operator evidence…" /></main>;
+}

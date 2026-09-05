@@ -1,4 +1,4 @@
-import { count, desc, eq, inArray, sum } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, notLike, or, sum } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createDatabase } from "@/db/client";
@@ -13,17 +13,18 @@ export async function GET(request: Request) {
   try {
     const input = querySchema.parse(Object.fromEntries(new URL(request.url).searchParams));
     const database = createDatabase();
+    const operationalJourney = or(isNull(paymentJourneys.razorpayOrderId), notLike(paymentJourneys.razorpayOrderId, "scenario:%"));
     const [journeyCount, eventCount, capturedCount, pendingCount, outcomeRows, workflows, workflowCount, stateRows, recentActivity, recentOutcome] = await Promise.all([
-      database.select({ value: count() }).from(paymentJourneys),
-      database.select({ value: count() }).from(webhookEvents),
-      database.select({ value: count() }).from(paymentJourneys).where(eq(paymentJourneys.state, "CAPTURED")),
-      database.select({ value: count() }).from(recoveryWorkflows).where(eq(recoveryWorkflows.status, "PENDING")),
-      database.select({ category: recoveryOutcomes.category, amount: sum(recoveryOutcomes.capturedAmount) }).from(recoveryOutcomes).groupBy(recoveryOutcomes.category),
+      database.select({ value: count() }).from(paymentJourneys).where(operationalJourney),
+      database.select({ value: count() }).from(webhookEvents).innerJoin(paymentJourneys, eq(webhookEvents.journeyId, paymentJourneys.id)).where(operationalJourney),
+      database.select({ value: count() }).from(paymentJourneys).where(and(eq(paymentJourneys.state, "CAPTURED"), operationalJourney)),
+      database.select({ value: count() }).from(recoveryWorkflows).innerJoin(paymentJourneys, eq(recoveryWorkflows.journeyId, paymentJourneys.id)).where(and(eq(recoveryWorkflows.status, "PENDING"), operationalJourney)),
+      database.select({ category: recoveryOutcomes.category, amount: sum(recoveryOutcomes.capturedAmount) }).from(recoveryOutcomes).innerJoin(paymentJourneys, eq(recoveryOutcomes.journeyId, paymentJourneys.id)).where(operationalJourney).groupBy(recoveryOutcomes.category),
       database.select().from(recoveryWorkflows).orderBy(desc(recoveryWorkflows.updatedAt)).limit(input.pageSize).offset((input.page - 1) * input.pageSize),
       database.select({ value: count() }).from(recoveryWorkflows),
-      database.select({ state: paymentJourneys.state, value: count() }).from(paymentJourneys).groupBy(paymentJourneys.state),
-      database.select({ journeyId: auditEntries.journeyId, eventType: auditEntries.eventType, reason: auditEntries.reason, createdAt: auditEntries.createdAt, evidence: auditEntries.evidence }).from(auditEntries).orderBy(desc(auditEntries.createdAt)).limit(12),
-      database.select({ category: recoveryOutcomes.category, createdAt: recoveryOutcomes.createdAt }).from(recoveryOutcomes).orderBy(desc(recoveryOutcomes.createdAt)).limit(1),
+      database.select({ state: paymentJourneys.state, value: count() }).from(paymentJourneys).where(operationalJourney).groupBy(paymentJourneys.state),
+      database.select({ journeyId: auditEntries.journeyId, eventType: auditEntries.eventType, reason: auditEntries.reason, createdAt: auditEntries.createdAt, evidence: auditEntries.evidence }).from(auditEntries).innerJoin(paymentJourneys, eq(auditEntries.journeyId, paymentJourneys.id)).where(operationalJourney).orderBy(desc(auditEntries.createdAt)).limit(12),
+      database.select({ category: recoveryOutcomes.category, createdAt: recoveryOutcomes.createdAt }).from(recoveryOutcomes).innerJoin(paymentJourneys, eq(recoveryOutcomes.journeyId, paymentJourneys.id)).where(operationalJourney).orderBy(desc(recoveryOutcomes.createdAt)).limit(1),
     ]);
     const journeyIds = [...new Set(workflows.map(workflow => workflow.journeyId))];
     const decisionIds = [...new Set(workflows.flatMap(workflow => workflow.decisionId ? [workflow.decisionId] : []))];
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
       outcomeTotals: Object.fromEntries(outcomeRows.map(row => [row.category, Number(row.amount)])),
       recentOutcome: recentOutcome[0] ?? null,
       recentActivity,
-      workflows: workflows.map(workflow => ({ ...workflow, orderId: orderIdByJourney.get(workflow.journeyId) ?? null, decisionAction: workflow.decisionId ? actionByDecision.get(workflow.decisionId) ?? null : null })),
+      workflows: workflows.map(workflow => { const orderId = orderIdByJourney.get(workflow.journeyId) ?? null; return { ...workflow, orderId, source: orderId?.startsWith("scenario:") ? "SYNTHETIC" : "TEST_MODE", decisionAction: workflow.decisionId ? actionByDecision.get(workflow.decisionId) ?? null : null }; }),
       pagination: { page: Math.min(input.page, totalPages), pageSize: input.pageSize, total, totalPages },
     });
   } catch {

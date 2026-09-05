@@ -1,5 +1,5 @@
 import { after, NextResponse } from "next/server";
-import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, notLike, or } from "drizzle-orm";
 import { requireOperator } from "@/lib/auth/session";
 import { createDatabase } from "@/db/client";
 import { banditStates, banditTrainingInteractions, downtimeSignals, incidents, paymentAttempts, paymentJourneys, recoveryDecisions } from "@/db/schema";
@@ -23,7 +23,8 @@ export async function GET(request: Request) {
   const now = new Date();
   const currentStart = new Date(now.getTime() - currentWindowMs);
   const baselineStart = new Date(currentStart.getTime() - baselineWindowMs);
-  const rows = await database.select({ id: paymentAttempts.id, method: paymentAttempts.method, provider: paymentAttempts.provider, deviceCategory: paymentAttempts.deviceCategory, errorCode: paymentAttempts.errorCode, status: paymentAttempts.status, receivedAt: paymentAttempts.receivedAt }).from(paymentAttempts).where(and(gte(paymentAttempts.receivedAt, baselineStart), lt(paymentAttempts.receivedAt, now)));
+  const operationalJourney = or(isNull(paymentJourneys.razorpayOrderId), notLike(paymentJourneys.razorpayOrderId, "scenario:%"));
+  const rows = await database.select({ id: paymentAttempts.id, method: paymentAttempts.method, provider: paymentAttempts.provider, deviceCategory: paymentAttempts.deviceCategory, errorCode: paymentAttempts.errorCode, status: paymentAttempts.status, receivedAt: paymentAttempts.receivedAt }).from(paymentAttempts).innerJoin(paymentJourneys, eq(paymentAttempts.journeyId, paymentJourneys.id)).where(and(gte(paymentAttempts.receivedAt, baselineStart), lt(paymentAttempts.receivedAt, now), operationalJourney));
   const attempts = rows.map((row): DetectablePaymentAttempt => ({ id: row.id, method: row.method ?? "OTHER", provider: row.provider ?? "OTHER", device: row.deviceCategory ?? "OTHER", errorCode: row.errorCode ?? "NONE", succeeded: row.status === "captured" || row.status === "authorized", period: row.receivedAt >= currentStart ? "CURRENT" : "BASELINE" }));
   const incident = detectPaymentIncident(attempts);
   const includeRisk = new URL(request.url).searchParams.get("includeRisk") === "true";
@@ -106,7 +107,7 @@ function matchesCohort(key: string, attempt: { provider: string | null; method: 
 async function withConcurrency<T, R>(items: T[], limit: number, work: (item: T) => Promise<R>) { const results: R[] = []; let index = 0; await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => { while (index < items.length) { const item = items[index++]; if (item) results.push(await work(item)); } })); return results; }
 
 async function calculateRevenueAtRisk(database: ReturnType<typeof createDatabase>) {
-  const eligible = await database.select().from(paymentJourneys).where(eq(paymentJourneys.state, "RETRY_ELIGIBLE"));
+  const eligible = await database.select().from(paymentJourneys).where(and(eq(paymentJourneys.state, "RETRY_ELIGIBLE"), or(isNull(paymentJourneys.razorpayOrderId), notLike(paymentJourneys.razorpayOrderId, "scenario:%"))));
   if (!eligible.length) return estimateRevenueAtRisk([], { baselineRecoveryProbability: env.RISK_NO_INTERVENTION_PROBABILITY, interventionCostPaise: env.RISK_INTERVENTION_COST_PAISE });
   const journeyIds = eligible.map((journey) => journey.id);
   const [attemptRows, decisionRows, interactionRows, activeSignals, openIncidents, storedPolicy] = await Promise.all([
