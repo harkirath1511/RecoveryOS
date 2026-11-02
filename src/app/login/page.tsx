@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Icon, StatusBadge } from "@/components/ui-primitives";
 
 export default function LoginPage() {
@@ -35,7 +36,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page"><header className="login-topbar"><Link className="site-brand" href="/"><BrandLogo /><span>recovery<span className="brand-os">os</span></span></Link><Link className="login-back" href="/">Back to website <Icon name="arrow" /></Link></header><div className="shell login-shell">
+    <main className="login-page"><header className="login-topbar"><Link className="site-brand" href="/"><BrandLogo /><span>recovery<span className="brand-os">os</span></span></Link><div className="login-header-actions"><ThemeToggle /><Link className="login-back" href="/">Back to website <Icon name="arrow" /></Link></div></header><div className="shell login-shell">
       <section className="login-intro" aria-labelledby="login-title">
         <p className="micro-label">A CLEARER VIEW OF YOUR PAYMENTS</p>
         <h1 id="login-title">Your next move,<br /><span>in focus.</span></h1>

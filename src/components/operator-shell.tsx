@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BrandLogo } from "./brand-logo";
 import { Icon } from "./ui-primitives";
+import { ThemeToggle } from "./theme-toggle";
 
 const navigation = [
   ["Overview", "/command-center"],
@@ -51,6 +52,7 @@ export function OperatorShell({ title, eyebrow, children }: { title: string; eye
           <input ref={searchRef} id="global-payment-search" name="q" placeholder="Find a payment" autoComplete="off" /><kbd>Ctrl K</kbd>
         </form>
         <Link className="workspace-guide" href="/guides/razorpay-setup">Guide <span>↗</span></Link>
+        <ThemeToggle />
         <form action="/api/auth/logout" method="post"><button className="sign-out" type="submit">Sign out</button></form>
         <button className="workspace-menu" type="button" onClick={() => setMobileOpen(value => !value)} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls="workspace-mobile-menu"><Icon name={mobileOpen ? "close" : "menu"} /></button>
       </div>
