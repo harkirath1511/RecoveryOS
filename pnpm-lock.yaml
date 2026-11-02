@@ -14,6 +14,9 @@ importers:
       '@upstash/qstash':
         specifier: ^2.11.3
         version: 2.11.3
+      '@vercel/analytics':
+        specifier: ^2.0.1
+        version: 2.0.1(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@neondatabase/serverless@1.1.0)(postgres@3.4.9)
@@ -1294,6 +1297,35 @@ packages:
 
   '@upstash/qstash@2.11.3':
     resolution: {integrity: sha512-d5saGTDlkbKDFSANENtyf+zqkJen9ho17S24x9lXo+DwWjZ9IDM5WKUzUsshUv8ufZsSpxJWyrZ8jZ6r8dBuhg==}
+
+  '@vercel/analytics@2.0.1':
+    resolution: {integrity: sha512-MTQG6V9qQrt1tsDeF+2Uoo5aPjqbVPys1xvnIftXSJYG2SrwXRHnqEvVoYID7BTruDz4lCd2Z7rM1BdkUehk2g==}
+    peerDependencies:
+      '@remix-run/react': ^2
+      '@sveltejs/kit': ^1 || ^2
+      next: '>= 13'
+      nuxt: '>= 3'
+      react: ^18 || ^19 || ^19.0.0-rc
+      svelte: '>= 4'
+      vue: ^3
+      vue-router: ^4
+    peerDependenciesMeta:
+      '@remix-run/react':
+        optional: true
+      '@sveltejs/kit':
+        optional: true
+      next:
+        optional: true
+      nuxt:
+        optional: true
+      react:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
+      vue-router:
+        optional: true
 
   '@vitest/expect@3.2.7':
     resolution: {integrity: sha512-E8eBXaKibuvH2pSZErOjdVb5vF4PbKYcrnluBTYxEk1l/VhhwZg1kZQsdtjq+CsF5CFydf2Rdkz7jDHKSisi3w==}
@@ -3743,6 +3775,11 @@ snapshots:
       crypto-js: 4.2.0
       jose: 5.10.0
       neverthrow: 7.2.0
+
+  '@vercel/analytics@2.0.1(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
+    optionalDependencies:
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react: 19.2.8
 
   '@vitest/expect@3.2.7':
     dependencies:

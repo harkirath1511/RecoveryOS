@@ -12,11 +12,13 @@ export type IconName =
   | "flask"
   | "loop"
   | "menu"
+  | "moon"
   | "payments"
   | "recovery"
   | "search"
   | "shield"
   | "sidebar"
+  | "sun"
   | "warning";
 
 export function Icon({ name, ...props }: { name: IconName } & SVGProps<SVGSVGElement>) {
@@ -32,11 +34,13 @@ export function Icon({ name, ...props }: { name: IconName } & SVGProps<SVGSVGEle
     flask: <><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /><path d="M8 15h8" /></>,
     loop: <><path d="M19.2 7.3A8.2 8.2 0 1 0 20 14" /><path d="M19.2 3.8v3.5h-3.5" /><circle cx="12" cy="12" r="2.1" /><path d="M5.3 16.6 7 14.9" /></>,
     menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
+    moon: <path d="M20.5 13.1A8.7 8.7 0 0 1 10.9 3.5 8.8 8.8 0 1 0 20.5 13.1Z" />,
     payments: <><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M3 10h18M7 15h3" /></>,
     recovery: <><path d="M20 7v5h-5" /><path d="M18.5 16a8 8 0 1 1 .8-7L20 12" /></>,
     search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
     shield: <><path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6z" /><path d="m9 12 2 2 4-4" /></>,
     sidebar: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></>,
+    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
     warning: <><path d="m12 3 9 17H3z" /><path d="M12 9v4M12 17h.01" /></>,
   };
   return <svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>{paths[name]}</svg>;

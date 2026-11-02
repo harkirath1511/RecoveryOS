@@ -1,24 +1,27 @@
 import Link from "next/link";
-import { Icon } from "./ui-primitives";
 import { BrandLogo } from "./brand-logo";
-import { SplineRecoveryBot } from "./spline-recovery-bot";
-import { SlushNavbar } from "./slush-navbar";
+import { SiteNavbar } from "./site-navbar";
+import { PaymentStory } from "./payment-story";
 
-const steps = [
-  ["01", "Detect the exception", "Signed provider events open a journey without taking a recovery action."],
-  ["02", "Verify before intervening", "Late capture and duplicate checks decide whether value is still at risk."],
-  ["03", "Recover with a record", "Every permitted action, outcome, and operator handoff remains traceable."],
+const principles = [
+  { number: "01", title: "Know what actually happened.", description: "Keep signed provider events and the original payment in one journey. Check for late captures before assuming a payment is still unpaid.", tag: "Provider-first verification" },
+  { number: "02", title: "Make the right next move.", description: "Evaluate eligibility, duplicates, and exact amounts before a recovery path is created. Keep uncertain cases with an operator.", tag: "Deterministic safety checks" },
+  { number: "03", title: "Keep the whole story connected.", description: "Follow every decision, workflow, and verified outcome back to its evidence. Give the next person the context they need.", tag: "Connected audit evidence" },
 ];
 
 export function LandingPage() {
   return <main className="landing-page">
-    <div className="landing-ribbon"><span>YOUR PAYMENTS. BACK ON TRACK.</span><span>VERIFY. RECOVER. REPEAT.</span><span>YOUR PAYMENTS. BACK ON TRACK.</span></div>
-    <SlushNavbar />
-    <section className="landing-hero"><div className="landing-spline-full" aria-hidden="true"><SplineRecoveryBot /></div><div className="landing-hero-content"><div className="landing-copy"><p className="landing-kicker"><span className="landing-dot">↻</span> PAYMENT RECOVERY, UNSTUCK</p><h1>PAYMENTS.<br />UNSTUCK.</h1><p className="landing-lede">Every payment exception gets a clear path from provider evidence to a verified outcome.</p><div className="landing-actions"><Link href="/login" className="landing-primary">OPEN YOUR WORKSPACE <Icon name="arrow" /></Link><a href="#how-it-works" className="landing-secondary">SEE THE FLOW <Icon name="chevron" /></a></div><p className="landing-note"><span />Provider-verified recovery. No hidden retries.</p></div><span className="landing-spline-credit">R4X Bot by Vlad Kolokolnikov · CC BY 4.0</span></div></section>
-    <section className="landing-intro" id="how-it-works"><p>ONE SOURCE OF TRUTH FOR EVERY PAYMENT EXCEPTION.</p><h2>FIND IT.<br />VERIFY IT.<br /><span>RECOVER IT.</span></h2><div><p>RecoveryOS gives the people behind payment operations a clear record, a real decision path, and a confident next action.</p><Link href="/login">START RECOVERING <Icon name="arrow" /></Link></div></section>
-    <section className="landing-steps">{steps.map(([number, title, description]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{description}</p><i aria-hidden="true">↗</i></article>)}</section>
-    <section className="landing-proof"><div><strong>ONE RECORD</strong><span>Provider events, decisions, and outcomes stay connected.</span></div><div><strong>SAFETY FIRST</strong><span>Only eligible payments can enter a recovery path.</span></div><div><strong>FULL RECEIPT</strong><span>Every intervention remains inspectable after the fact.</span></div></section>
-    <section className="landing-evidence" id="evidence"><div><p className="landing-kicker">EVERY ACTION. ON RECORD.</p><h2>RECOVERY THAT CAN EXPLAIN ITSELF.</h2><p>Trace a payment from its first exception through evidence, policy, workflow, and a verified result.</p><Link href="/login" className="landing-primary">EXPLORE RECOVERYOS <Icon name="arrow" /></Link></div><aside><p>PAYMENT STATUS / VERIFIED</p><strong>Provider found no capture</strong><small>Razorpay Test Mode · signed provider response</small><hr /><p>SAFETY EVALUATION / PASS</p><strong>Recovery eligible</strong><small>Exact amount, no duplicate path, grace window complete</small><hr /><p>OUTCOME / AWAITING</p><strong>Waiting for a confirmed result</strong><small>Workflow remains fully auditable</small></aside></section>
-    <footer className="landing-footer"><Link className="landing-brand" href="/"><span><BrandLogo /></span>RecoveryOS</Link><span>PAYMENT RECOVERY, UNSTUCK.</span><Link className="footer-doc-link" href="/guides/razorpay-setup">OPERATOR GUIDE <Icon name="arrow" /></Link><Link href="/login">OPERATOR SIGN IN <Icon name="arrow" /></Link></footer>
+    <a className="skip-link" href="#platform">Skip to content</a>
+    <SiteNavbar />
+    <section className="editorial-hero" id="platform">
+      <div className="hero-overline"><span className="micro-label">PAYMENT RECOVERY, WITH PERSPECTIVE.</span><span className="hero-edition">Built for the people behind payments ↙</span></div>
+      <div className="hero-editorial-grid"><h1>A failed payment.<br /><span>A better next move.</span></h1><div className="hero-description"><p>Turn payment exceptions into informed decisions. Investigate the failure, verify the facts, and bring recovery into focus.</p><Link href="/login" className="button-ink">Open workspace <span>↗</span></Link><a href="#how-it-works" className="quiet-link">A closer look <span>↓</span></a></div></div>
+      <PaymentStory />
+      <div className="hero-foundations"><span>Built on evidence.</span><p>Signed events <i>/</i> Safety-enforced actions <i>/</i> Verified outcomes</p><Link href="/guides/razorpay-setup">Connect Razorpay ↗</Link></div>
+    </section>
+    <section className="principles-section" id="how-it-works"><div className="principles-heading"><p className="micro-label">A MORE COMPLETE PICTURE</p><h2>First, understand.<br />Then, act.</h2><p>Good recovery starts with context.<br />Keep yours in one place.</p></div><div className="principles-list">{principles.map(item => <article key={item.number}><span className="principle-number">{item.number}</span><div><span className="micro-label">{item.tag}</span><h3>{item.title}</h3><p>{item.description}</p></div><span className="principle-arrow" aria-hidden="true">↗</span></article>)}</div></section>
+    <section className="record-section" id="evidence"><div className="record-section-copy"><p className="micro-label">EVERY ACTION LEAVES A RECORD</p><h2>The details<br />make the<br /><span>difference.</span></h2><p>From the original exception to a confirmed result, your team can see what happened, why it happened, and what comes next.</p><Link href="/login" className="quiet-link">Explore your workspace <span>↗</span></Link></div><div className="record-paper"><header><span className="micro-label">A CONNECTED EVIDENCE TRAIL</span><small>Example record / 024</small></header><div className="record-paper-row"><time>09:41:02</time><div><span>PROVIDER EVENT</span><h3>The exception is recorded.</h3><p>Signed payment evidence opens a journey.</p></div><b>01</b></div><div className="record-paper-row"><time>09:44:02</time><div><span>VERIFICATION</span><h3>The payment is checked.</h3><p>Provider truth establishes the capture state.</p></div><b>02</b></div><div className="record-paper-row"><time>09:44:03</time><div><span>SAFETY POLICY</span><h3>The next action is evaluated.</h3><p>Eligibility is determined before intervention.</p></div><b>03</b></div><footer><span className="record-square" /><p>Evidence stays connected.<br /><strong>So does your team.</strong></p><BrandLogo /></footer></div></section>
+    <section className="editorial-close"><p className="micro-label">CLARITY FOR YOUR NEXT MOVE.</p><div><h2>Get back to<br />moving forward.</h2><Link href="/login" className="closing-arrow" aria-label="Open your RecoveryOS workspace">↗</Link></div><p>Your payments. Your evidence. One workspace.</p></section>
+    <footer className="site-footer"><div className="footer-main"><Link className="site-brand" href="/"><BrandLogo /><span>recovery<span className="brand-os">os</span></span></Link><span>Every payment has a story.</span><nav aria-label="Footer navigation"><Link href="/guides/razorpay-setup">Documentation ↗</Link><Link href="/login">Sign in ↗</Link></nav></div><div className="footer-bottom"><span>© {new Date().getFullYear()} RecoveryOS</span><span>Payment recovery. Clearly considered.</span></div></footer>
   </main>;
 }

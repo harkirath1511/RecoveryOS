@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { SlushNavbar } from "@/components/slush-navbar";
+import { SiteNavbar } from "@/components/site-navbar";
 
 export const metadata: Metadata = {
-  title: "Razorpay setup guide | RecoveryOS",
+  title: "Razorpay setup guide",
   description: "Connect Razorpay and configure RecoveryOS operator access.",
 };
 
 export default function RazorpaySetupGuide() {
   return <main className="guide-page">
-    <SlushNavbar />
-    <section className="guide-hero"><p>RecoveryOS documentation</p><h1>RAZORPAY.<br />SET UP.</h1><span>Connect one merchant safely, then give your operator a protected workspace.</span></section>
+    <SiteNavbar />
+    <section className="guide-hero"><p className="micro-label">RecoveryOS documentation</p><h1>Connect your<br />payment provider.</h1><span>Connect one merchant safely, then give your operator a protected workspace.</span></section>
     <section className="guide-content">
       <article className="guide-section"><p className="guide-eyebrow">Single-merchant setup</p><h2>Connect Razorpay</h2><ol className="guide-steps"><li>Deploy RecoveryOS to a public HTTPS URL.</li><li>Add <code>https://your-domain.com/api/webhooks/razorpay</code> in the Razorpay Dashboard.</li><li>Subscribe to <code>payment.authorized</code>, <code>payment.captured</code>, and <code>payment.failed</code>.</li><li>Use a separate Razorpay webhook secret.</li><li>Configure <code>APP_BASE_URL</code>, <code>DEMO_ADMIN_PASSWORD</code>, <code>SESSION_SECRET</code>, <code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code>, and <code>RAZORPAY_WEBHOOK_SECRET</code> on the server.</li></ol></article>
       <article className="guide-section"><p className="guide-eyebrow">Webhook handling</p><h2>What RecoveryOS checks</h2><p>RecoveryOS validates the Razorpay HMAC signature using the raw request body and deduplicates webhook events before processing them.</p><p>Never expose API keys or webhook secrets in frontend code, screenshots, or public documentation.</p></article>
