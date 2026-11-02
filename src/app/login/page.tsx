@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { Icon, StatusBadge } from "@/components/ui-primitives";
 
 export default function LoginPage() {
@@ -33,12 +35,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="shell login-shell">
+    <main className="login-page"><header className="login-topbar"><Link className="site-brand" href="/"><BrandLogo /><span>Recovery<span className="brand-os">OS</span></span></Link><Link className="login-back" href="/">Back to website <Icon name="arrow" /></Link></header><div className="shell login-shell">
       <section className="login-intro" aria-labelledby="login-title">
-        <div className="login-mark"><Icon name="activity" width={22} height={22} /></div>
-        <p className="eyebrow">RecoveryOS / operator access</p>
-        <h1 id="login-title">Revenue recovery, with guardrails.</h1>
-        <p className="lede">Sign in to investigate payment journeys, operate recovery queues, and review append-only evidence.</p>
+        <p className="gold-eyebrow">YOUR SECURE OPERATIONS WORKSPACE</p>
+        <h1 id="login-title">Clarity in every<br />payment. <br /><em>Confidence in<br />every decision.</em></h1>
+        <p className="lede">Investigate payment journeys, manage recovery, and keep every decision connected to its evidence.</p>
         <div className="login-assurances" aria-label="Workspace assurances">
           <StatusBadge tone="warning">Test Mode</StatusBadge>
           <span><Icon name="shield" width={14} height={14} /> Safety-enforced actions</span>
@@ -47,16 +48,18 @@ export default function LoginPage() {
       </section>
       <form onSubmit={submit} aria-describedby={error ? "login-error" : undefined}>
         <div>
-          <p className="card-label">Secure workspace</p>
-          <h2>Enter the command center</h2>
+          <span className="login-form-icon"><Icon name="shield" /></span>
+          <p className="card-label">OPERATOR ACCESS</p>
+          <h2>Welcome back.</h2>
+          <p className="panel-footnote">Sign in to your payment operations workspace.</p>
         </div>
         <label htmlFor="operator-password">Operator password</label>
         <input id="operator-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" required />
         <p className="login-demo-password"><strong>Demo password:</strong> admin@123</p>
-        <button className="recovery-button" type="submit" disabled={submitting}>{submitting ? "Verifying…" : "Sign in securely"}</button>
+        <button className="recovery-button" type="submit" disabled={submitting}>{submitting ? "Verifying…" : "Enter workspace"}<Icon name="arrow" /></button>
         {error && <p className="form-error" id="login-error" role="alert"><Icon name="warning" width={15} height={15} /> {error}</p>}
         <p className="panel-footnote">Access is session-scoped. No payment action occurs on sign-in.</p>
       </form>
-    </main>
+    </div><footer className="login-footer"><span>© {new Date().getFullYear()} RecoveryOS</span><Link href="/guides/razorpay-setup">Need help getting connected? <Icon name="arrow" /></Link></footer></main>
   );
 }
