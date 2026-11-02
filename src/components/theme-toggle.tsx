@@ -7,38 +7,19 @@ import { themeStorageKey as storageKey } from "./theme-init";
 const changeEvent = "recoveryos-theme-change";
 type Theme = "light" | "dark";
 
-function systemTheme(): Theme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
 function subscribe(onChange: () => void) {
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-  const followSystem = () => {
-    if (document.documentElement.dataset.themePreference === "system") {
-      document.documentElement.dataset.theme = systemTheme();
-      onChange();
-    }
-  };
   const syncTabs = (event: StorageEvent) => {
     if (event.key !== storageKey && event.key !== null) return;
-    const preference = event.newValue === "dark" || event.newValue === "light" ? event.newValue : "system";
+    const preference: Theme = event.newValue === "dark" ? "dark" : "light";
     document.documentElement.dataset.themePreference = preference;
-    document.documentElement.dataset.theme = preference === "system" ? systemTheme() : preference;
+    document.documentElement.dataset.theme = preference;
     onChange();
   };
   window.addEventListener(changeEvent, onChange);
   window.addEventListener("storage", syncTabs);
-  window.addEventListener("focus", followSystem);
-  document.addEventListener("visibilitychange", followSystem);
-  media.addEventListener("change", followSystem);
-  // A system preference may change while the server-rendered page is hydrating.
-  followSystem();
   return () => {
     window.removeEventListener(changeEvent, onChange);
     window.removeEventListener("storage", syncTabs);
-    window.removeEventListener("focus", followSystem);
-    document.removeEventListener("visibilitychange", followSystem);
-    media.removeEventListener("change", followSystem);
   };
 }
 
