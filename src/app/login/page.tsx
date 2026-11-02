@@ -35,10 +35,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page"><header className="login-topbar"><Link className="site-brand" href="/"><BrandLogo /><span>Recovery<span className="brand-os">OS</span></span></Link><Link className="login-back" href="/">Back to website <Icon name="arrow" /></Link></header><div className="shell login-shell">
+    <main className="login-page"><header className="login-topbar"><Link className="site-brand" href="/"><BrandLogo /><span>recovery<span className="brand-os">os</span></span></Link><Link className="login-back" href="/">Back to website <Icon name="arrow" /></Link></header><div className="shell login-shell">
       <section className="login-intro" aria-labelledby="login-title">
-        <p className="gold-eyebrow">YOUR SECURE OPERATIONS WORKSPACE</p>
-        <h1 id="login-title">Clarity in every<br />payment. <br /><em>Confidence in<br />every decision.</em></h1>
+        <p className="micro-label">A CLEARER VIEW OF YOUR PAYMENTS</p>
+        <h1 id="login-title">Your next move,<br /><span>in focus.</span></h1>
         <p className="lede">Investigate payment journeys, manage recovery, and keep every decision connected to its evidence.</p>
         <div className="login-assurances" aria-label="Workspace assurances">
           <StatusBadge tone="warning">Test Mode</StatusBadge>
@@ -48,10 +48,10 @@ export default function LoginPage() {
       </section>
       <form onSubmit={submit} aria-describedby={error ? "login-error" : undefined}>
         <div>
-          <span className="login-form-icon"><Icon name="shield" /></span>
-          <p className="card-label">OPERATOR ACCESS</p>
-          <h2>Welcome back.</h2>
-          <p className="panel-footnote">Sign in to your payment operations workspace.</p>
+          <span className="login-form-index">01 / OPERATOR ACCESS</span>
+
+          <h2>Good to have you back.</h2>
+          <p className="panel-footnote">Enter your password to open your workspace.</p>
         </div>
         <label htmlFor="operator-password">Operator password</label>
         <input id="operator-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" required />

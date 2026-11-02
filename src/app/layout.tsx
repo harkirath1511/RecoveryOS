@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
 
 import "./globals.css";
-import "./royal.css";
+import "./design.css";
 
 export const metadata: Metadata = {
   title: { default: "RecoveryOS — Payment recovery, with confidence", template: "%s | RecoveryOS" },

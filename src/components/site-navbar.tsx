@@ -25,9 +25,9 @@ export function SiteNavbar() {
 
   return <header className="site-header">
     <div className="site-nav">
-      <Link href="/" className="site-brand" aria-label="RecoveryOS home"><BrandLogo /><span>Recovery<span className="brand-os">OS</span></span></Link>
+      <Link href="/" className="site-brand" aria-label="RecoveryOS home"><BrandLogo /><span>recovery<span className="brand-os">os</span></span></Link>
       <nav className="site-nav-links" aria-label="Main navigation">{items.map(([name, href]) => <Link key={name} href={href} aria-current={pathname === href ? "page" : undefined}>{name}</Link>)}</nav>
-      <div className="site-nav-actions"><Link href="/login" className="nav-signin">Sign in</Link><Link href="/login" className="button-gold nav-workspace">Open workspace <Icon name="arrow" /></Link><button type="button" className="site-menu-button" onClick={() => setOpen(value => !value)} aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} aria-controls="site-mobile-menu"><Icon name={open ? "close" : "menu"} /></button></div>
+      <div className="site-nav-actions"><Link href="/login" className="nav-signin">Sign in</Link><Link href="/login" className="button-ink nav-workspace">Open workspace <Icon name="arrow" /></Link><button type="button" className="site-menu-button" onClick={() => setOpen(value => !value)} aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} aria-controls="site-mobile-menu"><Icon name={open ? "close" : "menu"} /></button></div>
     </div>
     {open && <nav className="site-mobile-menu" id="site-mobile-menu" aria-label="Mobile navigation">{items.map(([name, href]) => <Link key={name} href={href} onClick={() => setOpen(false)}>{name}<Icon name="chevron" /></Link>)}<Link href="/login" onClick={() => setOpen(false)}>Open workspace <Icon name="arrow" /></Link></nav>}
   </header>;
